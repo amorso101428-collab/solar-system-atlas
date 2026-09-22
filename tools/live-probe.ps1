@@ -20,7 +20,11 @@ param(
   [switch]$UseGpu = $false,
   # 用真实窗口而不是无头模式（显卡选择与显示输出有关，无头会走另一条路径）。
   # 窗口位置移到屏幕外，所以不会打扰你。
-  [switch]$Windowed = $false
+  [switch]$Windowed = $false,
+  # 真机模拟：视口 + 触摸 + 移动 UA。移动端布局/手势判定依赖触摸能力，
+  # 只把窗口改窄是测不准的。
+  [switch]$Mobile = $false,
+  [double]$ScaleFactor = 2
 )
 
 $ErrorActionPreference = 'Stop'
@@ -89,6 +93,19 @@ try {
   }
 
   Send-Cdp -Method 'Page.enable' | Out-Null
+
+  if ($Mobile) {
+    # 先覆盖设备参数再加载，这样首屏就是真实的移动端环境
+    Send-Cdp -Method 'Emulation.setDeviceMetricsOverride' -Params @{
+      width = $Width; height = $Height; deviceScaleFactor = $ScaleFactor; mobile = $true
+    } | Out-Null
+    Send-Cdp -Method 'Emulation.setTouchEmulationEnabled' -Params @{ enabled = $true; maxTouchPoints = 5 } | Out-Null
+    Send-Cdp -Method 'Emulation.setUserAgentOverride' -Params @{
+      userAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+    } | Out-Null
+    Send-Cdp -Method 'Page.reload' | Out-Null
+    Start-Sleep -Seconds 2
+  }
 
   if ($ErrProbe) {
     $source = @'

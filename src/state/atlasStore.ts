@@ -3,6 +3,8 @@ import type { Locale } from '../i18n'
 import { parentOfObject, CURRENT_YEAR, FIRST_LAUNCH_YEAR } from '../data/objects'
 import { PLANETS } from '../data/planets'
 import { requestOrbitPose, requestPositionPose } from '../utils/orbitPose'
+import type { SheetState } from '../gesture/BottomSheetGesture'
+import { forceTimelineTarget } from './timelineTime'
 
 /** 卫星 → 它的母星（返回上一级时用，不再写死"回地球"） */
 const MOON_PARENT = new Map<string, string>(
@@ -86,6 +88,12 @@ interface AtlasState {
   /** 时间轴回放 */
   playing: boolean
   filterToast: string | null
+  /** 移动端菜单抽屉（§17） */
+  mobileMenuOpen: boolean
+  /** 移动端详情 Bottom Sheet 的档位（§06） */
+  sheetState: SheetState
+  /** 移动端时间轴抽屉是否展开（V1.1 §2） */
+  timelineExpanded: boolean
 
   enterAtlas: (fast?: boolean) => void
   setMode: (mode: ViewMode) => void
@@ -127,9 +135,14 @@ interface AtlasState {
   hover: (id: string | null) => void
   setFilter: (id: string) => void
   setTimelineYear: (year: number) => void
+  /** 只同步 store 里的年份（连续拖动的节流写入用，见 timelineTime.ts） */
+  syncTimelineYear: (year: number) => void
   toggleCatalog: () => void
   openArchive: () => void
   clearFilterToast: () => void
+  openMobileMenu: (open?: boolean) => void
+  setSheetState: (state: SheetState) => void
+  setTimelineExpanded: (expanded: boolean) => void
 }
 
 export const useAtlasStore = create<AtlasState>((set) => ({
@@ -169,6 +182,9 @@ export const useAtlasStore = create<AtlasState>((set) => ({
   unfoldLevel: 0,
   playing: false,
   filterToast: null,
+  mobileMenuOpen: false,
+  sheetState: 'collapsed',
+  timelineExpanded: false,
 
   enterAtlas: () => set({ mode: 'ENTERING', guideOpen: false }),
   setMode: (mode) => set({ mode }),
@@ -191,6 +207,8 @@ export const useAtlasStore = create<AtlasState>((set) => ({
             cameraState: 'FLYING_IN',
             guideOpen: false,
             searchOpen: false,
+            mobileMenuOpen: false,
+            sheetState: 'collapsed' as SheetState,
             view: 'ORBIT3D',
           }
         : {
@@ -214,6 +232,8 @@ export const useAtlasStore = create<AtlasState>((set) => ({
       cameraState: 'FLYING_IN',
       guideOpen: false,
       searchOpen: false,
+      mobileMenuOpen: false,
+      sheetState: 'collapsed' as SheetState,
       // 一旦推近到某个天体，镜头就在 3D 里工作了：不再退回侧视（方案书 §3）
       view: 'ORBIT3D',
     }),
@@ -228,6 +248,8 @@ export const useAtlasStore = create<AtlasState>((set) => ({
       cameraState: 'FLYING_IN',
       guideOpen: false,
       searchOpen: false,
+      mobileMenuOpen: false,
+      sheetState: 'collapsed' as SheetState,
       view: 'ORBIT3D',
     }),
 
@@ -242,6 +264,8 @@ export const useAtlasStore = create<AtlasState>((set) => ({
       cameraState: 'FLYING_IN',
       guideOpen: false,
       searchOpen: false,
+      mobileMenuOpen: false,
+      sheetState: 'collapsed' as SheetState,
       view: 'ORBIT3D',
     }),
 
@@ -256,6 +280,8 @@ export const useAtlasStore = create<AtlasState>((set) => ({
       cameraState: 'FLYING_IN',
       guideOpen: false,
       searchOpen: false,
+      mobileMenuOpen: false,
+      sheetState: 'collapsed' as SheetState,
       view: 'ORBIT3D',
     }),
 
@@ -429,10 +455,21 @@ export const useAtlasStore = create<AtlasState>((set) => ({
    * 现在保留浮点：目标的连续变化交给 utils/clock.ts 的阻尼追赶。
    */
   setTimelineYear: (year) =>
+    /**
+     * V1.1 §5：场景的时间源是浮点连续值（timelineTime.target），
+     * store 里的年份只负责 UI 文字。这里两条一起写，
+     * 桌面鼠标拖动、深链、回放的行为与 V1 完全一致。
+     */
+    (forceTimelineTarget(Math.min(CURRENT_YEAR, Math.max(FIRST_LAUNCH_YEAR, year))),
     set({
       timelineYear: Math.min(CURRENT_YEAR, Math.max(FIRST_LAUNCH_YEAR, year)),
-    }),
+    })),
+  syncTimelineYear: (year) =>
+    set({ timelineYear: Math.min(CURRENT_YEAR, Math.max(FIRST_LAUNCH_YEAR, year)) }),
   toggleCatalog: () => set((state) => ({ catalogVisible: !state.catalogVisible })),
   openArchive: () => set({ archiveOpen: true, cameraState: 'FOCUS' }),
   clearFilterToast: () => set({ filterToast: null }),
+  openMobileMenu: (open) => set((state) => ({ mobileMenuOpen: open ?? !state.mobileMenuOpen })),
+  setSheetState: (sheetState) => set({ sheetState }),
+  setTimelineExpanded: (timelineExpanded) => set({ timelineExpanded }),
 }))

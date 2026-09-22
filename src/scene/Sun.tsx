@@ -11,6 +11,7 @@ import {
 import { SUN_RADIUS } from '../utils/layout'
 import { useTexture } from './useTexture'
 import { useAtlasStore } from '../state/atlasStore'
+import { useQualitySettings } from '../performance/useQuality'
 
 /**
  * 太阳（方案书 §2 / §15）。
@@ -266,6 +267,11 @@ export function Sun() {
   // 主界面只留细微的日冕结构；聚焦太阳或打开空间天气时才让日珥 / 活动区明显起来
   const sunFocused = focusKind === 'PLANET' && focusId === 'sun'
   const activity = sunFocused || spaceWeather ? 3.6 : 1
+  /**
+   * V1.1 §12 第 8 步：日冕细节是阶梯里的独立一级。
+   * 桌面恒为 1（与 V1 完全一致）；降级时先收日冕流线，最后才碰日面。
+   */
+  const quality = useQualitySettings()
 
   useEffect(() => {
     /**
@@ -294,8 +300,10 @@ export function Sun() {
     const ortho = state.camera as THREE.OrthographicCamera
     const viewHeight = (ortho.top - ortho.bottom) / (ortho.zoom || 1)
     const sunScreenRadius = (SUN_RADIUS / Math.max(viewHeight, 1e-3)) * state.size.height * 0.5
-    const detailFade = THREE.MathUtils.smoothstep(sunScreenRadius, 7, 26)
-    chromosphere.uniforms.uIntensity.value = (0.5 + 0.5 * (activity / 3.6)) * detailFade
+    const detailFade =
+      THREE.MathUtils.smoothstep(sunScreenRadius, 7, 26) * quality.coronaDetail
+    chromosphere.uniforms.uIntensity.value =
+      (0.5 + 0.5 * (activity / 3.6)) * detailFade
     corona.uniforms.uIntensity.value = detailFade
   })
 

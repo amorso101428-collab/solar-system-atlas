@@ -24,6 +24,8 @@ import type { PlanetDef, SystemId } from '../data/types'
 import { sceneReveal } from '../utils/reveal'
 import { planetDim } from '../utils/glStats'
 import { audio } from '../audio/audioManager'
+import { getLayoutMode, isTouchLayout } from '../responsive/device'
+import { gestureManager } from '../gesture'
 
 /**
  * 镜头导演（方案书 §2 / §5 / §7 / §23）。
@@ -118,11 +120,67 @@ function realPositionShot(width: number, height: number): Shot {
   const aspect = Math.max(width, 1) / Math.max(height, 1)
   const diameter = ATLAS_OUTER_RADIUS * 2 * 1.06
   const visibleHeight = diameter * Math.max(1, 1 / Math.max(aspect, 0.6))
+  /**
+   * V1：手机竖屏是 0.46 的宽高比，0.58 的仰角会把整圈轨道压成一条扁椭圆；
+   * 这里抬到接近俯视，画面才是一个读得懂的"太阳系圆盘"。
+   */
+  const portraitPhone = getLayoutMode() === 'mobile-portrait'
+  const pitch = portraitPhone ? 1.12 : 0.58
   return {
-    target: new THREE.Vector3(0, 0, 0),
+    target: focusTarget(
+      new THREE.Vector3(0, 0, 0),
+      visibleHeight,
+      aspect,
+      SIDE_VIEW_YAW,
+      new THREE.Vector3(),
+      pitch
+    ),
     height: visibleHeight,
     yaw: SIDE_VIEW_YAW,
-    pitch: 0.58,
+    pitch,
+  }
+}
+
+/**
+ * 总览构图的分发（V1 §06）。
+ *
+ * 桌面 / iPad / 手机横屏 —— 侧视信息图，也就是原来的 atlasShot，一字未改。
+ * 手机竖屏 —— 侧视那条"一字排开"的行星在 0.46 的宽高比下只能被压成
+ * 中间一条细线（行星只剩几个像素）。手机竖屏改用**俯视全景**：
+ * 以太阳为中心、按宽度装下最外圈轨道，画面接近一个圆盘，
+ * 再配合双指缩放进入内太阳系——这才是手机竖屏真正能读的太阳系。
+ */
+function atlasBaseShot(width: number, height: number): Shot {
+  /**
+   * 真实位置模式下构图由 realPositionShot 决定，这里必须跟着走，
+   * 否则"进场镜头"与"进场之后每帧的取景"会是两张图。
+   */
+  if (useAtlasStore.getState().positionMode === 'REAL') return realPositionShot(width, height)
+  if (getLayoutMode() !== 'mobile-portrait') return atlasShot(width, height)
+  const aspect = Math.max(width, 1) / Math.max(height, 1)
+  /**
+   * 取景半径：完整图谱（半径 199）在 0.46 的宽高比下会把八颗行星
+   * 全挤进画面中间那一小块；手机上收到木星轨道（88）——
+   * 内太阳系 + 小行星带 + 木星，行星真的看得清，
+   * 外太阳系只要往外捏一下就回来。这是 §23 说的 Semantic LOD 在取景上的对应。
+   */
+  const frameRadius = Math.min(ATLAS_OUTER_RADIUS, 88)
+  const visibleHeight = (frameRadius * 2 * 1.1) / Math.max(aspect, 0.36)
+  const yaw = SIDE_VIEW_YAW
+  const pitch = 1.2
+  return {
+    // 天体整体上抬到上半屏（下面压着 Bottom Sheet）
+    target: focusTarget(
+      new THREE.Vector3(0, 0, 0),
+      visibleHeight,
+      aspect,
+      yaw,
+      new THREE.Vector3(),
+      pitch
+    ),
+    height: visibleHeight,
+    yaw,
+    pitch,
   }
 }
 
@@ -139,16 +197,75 @@ function rightVector(yaw: number): THREE.Vector3 {
  */
 const SUBJECT_SCREEN_X = -0.34
 
+/**
+ * 被摄天体在画面里的落点（V1 §05 / §06 / §13）。
+ *
+ *   桌面 / iPad 横屏 —— 左景右档：天体落在左侧 22~34%，右边留给档案（沿用 v5 §9）
+ *   iPad 竖屏       —— 上下分区：天体居中并上抬，下半屏是详情
+ *   手机            —— 全屏场景 + Bottom Sheet：天体居中并上抬到抽屉上方
+ *
+ * 单位是"半屏比例"（x 为半宽、y 为半高）。桌面档位必须与 V1 之前的 -0.34 完全一致。
+ */
+function subjectScreenOffset(): { x: number; y: number } {
+  switch (getLayoutMode()) {
+    case 'desktop':
+      return { x: SUBJECT_SCREEN_X, y: 0 }
+    case 'tablet-landscape':
+      return { x: -0.24, y: 0 }
+    case 'tablet-portrait':
+      return { x: -0.02, y: 0.28 }
+    // 手机横屏仍然是左景右档（§07），天体留在左侧
+    case 'mobile-landscape':
+      return { x: -0.2, y: 0.05 }
+    default:
+      return { x: 0, y: 0.34 }
+  }
+}
+
+/**
+ * 相机的屏幕竖直方向（world up 在垂直于视线平面上的投影）。
+ * 竖屏 / 手机需要把天体整体上抬，这一步必须用真实的相机基向量算，
+ * 否则天体在倾斜视角下会跑到画面角落。
+ */
+function upVector(yaw: number, pitch: number, out = new THREE.Vector3()): THREE.Vector3 {
+  const dir = scratchDir
+    .set(Math.cos(pitch) * Math.sin(yaw), Math.sin(pitch), Math.cos(pitch) * Math.cos(yaw))
+    .normalize()
+  return out.set(0, 1, 0).addScaledVector(dir, -dir.y).normalize()
+}
+
+/**
+ * 行星本体占视口高度的比例（v8 §25 的取景判据）。
+ * 桌面保持 0.48 不变；竖屏 0.52；手机 0.42（上半屏可见区域里天体约 7 成高）。
+ */
+function planetScreenFraction(): number {
+  switch (getLayoutMode()) {
+    case 'desktop':
+      return 0.48
+    case 'tablet-landscape':
+      return 0.46
+    case 'tablet-portrait':
+      return 0.52
+    default:
+      return 0.42
+  }
+}
+
 /** 把天体的世界坐标换算成"落在画面左侧"的相机 target */
 function focusTarget(
   anchorPosition: THREE.Vector3,
   height: number,
   aspect: number,
   yaw: number,
-  out = new THREE.Vector3()
+  out = new THREE.Vector3(),
+  pitch = SIDE_VIEW_PITCH
 ): THREE.Vector3 {
+  const offset = subjectScreenOffset()
   const halfW = (height / 2) * aspect
-  return out.copy(anchorPosition).addScaledVector(rightVector(yaw), -SUBJECT_SCREEN_X * halfW)
+  out.copy(anchorPosition).addScaledVector(rightVector(yaw), -offset.x * halfW)
+  // 桌面 offset.y === 0：这一句在桌面上是彻底的 no-op
+  if (offset.y !== 0) out.addScaledVector(upVector(yaw, pitch), -offset.y * (height / 2))
+  return out
 }
 
 interface LiveAnchor {
@@ -245,11 +362,12 @@ function computeFocusShot(kind: FocusKind, anchor: LiveAnchor, aspect: number): 
   if (kind === 'COMET') {
     const height = 26
     const yaw = SIDE_VIEW_YAW + 0.34
+    const pitch = 0.28
     return {
-      target: focusTarget(anchor.position, height, aspect, yaw),
+      target: focusTarget(anchor.position, height, aspect, yaw, new THREE.Vector3(), pitch),
       height,
       yaw,
-      pitch: 0.28,
+      pitch,
     }
   }
 
@@ -257,11 +375,12 @@ function computeFocusShot(kind: FocusKind, anchor: LiveAnchor, aspect: number): 
     // 三圈结构：从黄道面上方一点俯视，让整圈刚好落进画面
     const height = anchor.diskRadius * 2.1
     const yaw = SIDE_VIEW_YAW + 0.1
+    const pitch = 0.62
     return {
-      target: focusTarget(anchor.position, height, aspect, yaw),
+      target: focusTarget(anchor.position, height, aspect, yaw, new THREE.Vector3(), pitch),
       height,
       yaw,
-      pitch: 0.62,
+      pitch,
     }
   }
 
@@ -275,7 +394,11 @@ function computeFocusShot(kind: FocusKind, anchor: LiveAnchor, aspect: number): 
 	     * 卫星同心圆因此会超出画面——它们改由右侧档案与全息标注说明，
 	     * 这也是 v8 "行星表面全息分析"的前提。
 	     */
-	    const PLANET_SCREEN_FRACTION = 0.48
+	    /**
+	     * V1 §13：手机 / 竖屏下场景区域更小，天体本体要占更大的比例
+	     * （桌面 0.48，竖屏 0.52，手机 0.42——手机还要给底部抽屉留出可见上半屏）。
+	     */
+	    const PLANET_SCREEN_FRACTION = planetScreenFraction()
 	    const diameter = anchor.parentRadius * 2
 	    // 下限 1.4：再近就会撞进天体表面（月球本体只有 0.26 个视觉单位）
 	    const height = Math.max(diameter / PLANET_SCREEN_FRACTION, 1.4)
@@ -285,11 +408,12 @@ function computeFocusShot(kind: FocusKind, anchor: LiveAnchor, aspect: number): 
      * 好不容易画成正圆的同心圆又被压成椭圆（v6 §2）。
      */
     const yaw = SIDE_VIEW_YAW + 0.08
+    const pitch = SIDE_VIEW_PITCH + 0.09
     return {
-      target: focusTarget(anchor.position, height, aspect, yaw),
+      target: focusTarget(anchor.position, height, aspect, yaw, new THREE.Vector3(), pitch),
       height,
       yaw,
-      pitch: SIDE_VIEW_PITCH + 0.09,
+      pitch,
     }
   }
 
@@ -302,11 +426,12 @@ function computeFocusShot(kind: FocusKind, anchor: LiveAnchor, aspect: number): 
      */
     const height = THREE.MathUtils.clamp(Math.max((anchor.parentRadius * 2) / 0.45, 1.5), 1.5, 2.6)
     const yaw = SIDE_VIEW_YAW + 0.08
+    const pitch = SIDE_VIEW_PITCH + 0.09
     return {
-      target: focusTarget(anchor.position, height, aspect, yaw),
+      target: focusTarget(anchor.position, height, aspect, yaw, new THREE.Vector3(), pitch),
       height,
       yaw,
-      pitch: SIDE_VIEW_PITCH + 0.09,
+      pitch,
     }
   }
 
@@ -327,7 +452,13 @@ function computeFocusShot(kind: FocusKind, anchor: LiveAnchor, aspect: number): 
 
   // 对象落在画面 32% 宽处：偏移直接算进取景目标，所以飞过去就已经在左边，
   // 而不是先飞到中间再滑开（那是"所有东西都在右边"的根源）。
-  return { target: focusTarget(anchor.position, height, aspect, yaw), height, yaw, pitch: 0.22 }
+  const pitch = 0.22
+  return {
+    target: focusTarget(anchor.position, height, aspect, yaw, new THREE.Vector3(), pitch),
+    height,
+    yaw,
+    pitch,
+  }
 }
 
 export function CameraRig() {
@@ -383,9 +514,19 @@ export function CameraRig() {
   const pointer = useRef({ x: 0, y: 0 })
   /** 用户自己缩放过之后，就不再让总览的自动构图覆盖他的尺度 */
   const manualZoom = useRef(false)
+  /**
+   * V1：触摸手势是否正在作用（单指旋转 / 双指缩放）。
+   *
+   * 桌面端恒为 false——只有 GestureManager 会在手指按下时置位，
+   * 所以下面所有 `&& !touchDrag.current` 的判断在桌面上等价于不写，
+   * 每帧构图逻辑与 V1 之前完全一致。
+   */
+  const touchDrag = useRef(false)
+  /** 本次触摸是否已经触发过"侧视 → 3D 展开" */
+  const touchOrbitArmed = useRef(false)
 
   useEffect(() => {
-    home.current = atlasShot(size.width, size.height)
+    home.current = atlasBaseShot(size.width, size.height)
     manualZoom.current = false
   }, [size.width, size.height])
 
@@ -432,7 +573,7 @@ export function CameraRig() {
       requestOrbitPose(1)
       const shot = deepLinkReal
         ? realPositionShot(size.width, size.height)
-        : atlasShot(size.width, size.height)
+        : atlasBaseShot(size.width, size.height)
       if (!deepLinkReal) {
         shot.pitch = 0.52
         shot.yaw = SIDE_VIEW_YAW + 0.22
@@ -450,6 +591,13 @@ export function CameraRig() {
   useEffect(() => {
     const element = gl.domElement
     const halfHeight = () => current.current.height / 2
+    /**
+     * 这台设备是不是"以触屏为主"（V1 §02）。
+     *
+     * false = 桌面 / 触屏笔记本：触摸仍然走 V1 之前的老路径（拖动 = 平移），
+     * 一个新分支都不会被走到。
+     */
+    const touchGestures = isTouchLayout(getLayoutMode())
 
     const onWheel = (event: WheelEvent) => {
       /**
@@ -478,6 +626,8 @@ export function CameraRig() {
     }
 
     const onPointerDown = (event: PointerEvent) => {
+      // 触屏设备：指针交给 GestureManager 统一识别，这里不再重复处理
+      if (event.pointerType !== 'mouse' && touchGestures) return
       // 中键：浏览器默认会用来自动滚动，必须挡掉
       if (event.button === 1) event.preventDefault()
       const orbiting = event.button === 2 || event.shiftKey
@@ -497,7 +647,7 @@ export function CameraRig() {
       if (orbiting && useAtlasStore.getState().mode !== 'INTRO') {
         const state = useAtlasStore.getState()
         if (state.view === 'SIDE' && state.focusKind === 'ATLAS') {
-          const target = atlasShot(size.width, size.height)
+          const target = atlasBaseShot(size.width, size.height)
           transition.current = {
             fromYaw: current.current.yaw,
             fromPitch: current.current.pitch,
@@ -581,6 +731,8 @@ export function CameraRig() {
     }
 
     const onPointerUp = (event: PointerEvent) => {
+      // 触摸指针由 GestureManager 管理 capture，这里绝不能替它释放
+      if (event.pointerType !== 'mouse' && touchGestures) return
       drag.current.active = false
       // 拖动结束，恢复 hover 音（v8 §21）
       audio.muteHover(false)
@@ -596,7 +748,7 @@ export function CameraRig() {
       if (useAtlasStore.getState().mode === 'INTRO') return
       manualOffset.current.set(0, 0, 0)
       manualZoom.current = false
-      home.current = atlasShot(size.width, size.height)
+      home.current = atlasBaseShot(size.width, size.height)
       desired.current.yaw = home.current.yaw
       desired.current.pitch = home.current.pitch
       desired.current.height = home.current.height
@@ -613,6 +765,107 @@ export function CameraRig() {
     window.addEventListener('pointerup', onPointerUp)
     element.addEventListener('contextmenu', onContext)
     element.addEventListener('dblclick', onDoubleClick)
+    /**
+     * ---------------------------- 触摸手势（V1 §09 / §11） ----------------------------
+     *
+     *   单指拖动 → Rotate        双指 pinch → Zoom
+     *   双指平移 → Pan           轻点     → Select / Focus（交给 R3F 的 click）
+     *
+     * 四条手势最终都作用在**同一份** desired / manualOffset 上，
+     * 和滚轮、中键 dolly、右键旋转共用一套阻尼与夹值——
+     * 没有第二套 Camera 逻辑（方案书 §12）。
+     */
+    const stopTouchDrag = () => {
+      touchDrag.current = false
+      touchOrbitArmed.current = false
+    }
+
+    /** 手指第一次真正转动时：进入 3D（与桌面右键按下时的那一段完全同义） */
+    const armTouchOrbit = () => {
+      if (touchOrbitArmed.current) return
+      touchOrbitArmed.current = true
+      touchDrag.current = true
+      const state = useAtlasStore.getState()
+      if (state.mode === 'INTRO') return
+      flight.current = null
+      manualOrbit.current = true
+      if (state.view === 'SIDE' && state.focusKind === 'ATLAS') {
+        const target = atlasBaseShot(size.width, size.height)
+        transition.current = {
+          fromYaw: current.current.yaw,
+          fromPitch: current.current.pitch,
+          fromHeight: current.current.height,
+          fromX: current.current.target.x,
+          fromZ: current.current.target.z,
+          toYaw: SIDE_VIEW_YAW + 0.3,
+          toPitch: 0.3,
+          toHeight: target.height * 1.04,
+          toX: target.target.x,
+          toZ: target.target.z,
+          elapsed: 0,
+          duration: UNFOLD_DURATION,
+        }
+      }
+      state.setView('ORBIT3D')
+      requestOrbitPose(1)
+      state.setAtlasPose(false)
+    }
+
+    const detachGestures = gestureManager.registerCanvas(element, {
+      onOrbitStart: () => {
+        touchDrag.current = true
+      },
+      onOrbit: (yawDelta, pitchDelta) => {
+        armTouchOrbit()
+        if (useAtlasStore.getState().mode === 'INTRO') {
+          // 首页：只做一次轻量的视角旋转（与桌面拖动首页同义）
+          introDrag.current.yaw = THREE.MathUtils.clamp(
+            introDrag.current.yaw + yawDelta,
+            -0.85,
+            0.85
+          )
+          introDrag.current.pitch = THREE.MathUtils.clamp(
+            introDrag.current.pitch - pitchDelta,
+            -0.16,
+            0.16
+          )
+          return
+        }
+        transition.current = null
+        desired.current.yaw -= yawDelta
+        desired.current.pitch = THREE.MathUtils.clamp(
+          desired.current.pitch + pitchDelta,
+          -1.35,
+          1.35
+        )
+      },
+      onPinch: (scaleDelta) => {
+        if (scaleDelta <= 0) return
+        touchDrag.current = true
+        if (useAtlasStore.getState().mode === 'INTRO') {
+          introZoom.current = THREE.MathUtils.clamp(introZoom.current / scaleDelta, 0.75, 1.35)
+          return
+        }
+        flight.current = null
+        manualZoom.current = true
+        desired.current.height = THREE.MathUtils.clamp(
+          desired.current.height / scaleDelta,
+          1.5,
+          760
+        )
+      },
+      onPan: (dx, dy) => {
+        touchDrag.current = true
+        if (useAtlasStore.getState().mode === 'INTRO') return
+        flight.current = null
+        const scale = (halfHeight() * 2) / Math.max(size.height, 1)
+        const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0)
+        const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1)
+        manualOffset.current.addScaledVector(right, -dx * scale)
+        manualOffset.current.addScaledVector(up, dy * scale)
+      },
+      onEnd: stopTouchDrag,
+    })
     return () => {
       element.removeEventListener('wheel', onWheel)
       element.removeEventListener('pointerdown', onPointerDown)
@@ -621,6 +874,7 @@ export function CameraRig() {
       window.removeEventListener('pointerup', onPointerUp)
       element.removeEventListener('contextmenu', onContext)
       element.removeEventListener('dblclick', onDoubleClick)
+      detachGestures()
     }
   }, [camera, gl, size.height, size.width])
 
@@ -639,7 +893,7 @@ export function CameraRig() {
          * 因为起点和主页完全一致，这里不存在"切换"，
          * 行星 / 外太阳系是从画面边缘自然走进来的，不会闪。
          */
-        home.current = atlasShot(size.width, size.height)
+        home.current = atlasBaseShot(size.width, size.height)
         const from = topShot(size.width, size.height)
         current.current = cloneShot(from)
         desired.current = cloneShot(home.current)
@@ -674,7 +928,7 @@ export function CameraRig() {
         const to =
           state.positionMode === 'REAL'
             ? realPositionShot(size.width, size.height)
-            : atlasShot(size.width, size.height)
+            : atlasBaseShot(size.width, size.height)
         transition.current = {
           fromYaw: current.current.yaw,
           fromPitch: current.current.pitch,
@@ -859,7 +1113,12 @@ export function CameraRig() {
       if (following && shot && anchor) {
         // 取景高度只在"飞过去"的时候由 computeFocusShot 决定；
         // 之后高度归用户：滚轮 / 中键必须在聚焦状态下继续可用（方案书 §5）。
-        if (!drag.current.active && flight.current === null && !drag.current.moved) {
+        if (
+          !drag.current.active &&
+          !touchDrag.current &&
+          flight.current === null &&
+          !drag.current.moved
+        ) {
           desired.current.yaw = shot.yaw
           desired.current.pitch = shot.pitch
         }
@@ -871,7 +1130,8 @@ export function CameraRig() {
           desired.current.height,
           aspect,
           desired.current.yaw,
-          desired.current.target
+          desired.current.target,
+          desired.current.pitch
         )
         current.current.target.lerp(desired.current.target, 1 - Math.pow(0.02, step))
       } else if (useAtlasStore.getState().viewLayer === 'DEEP') {
@@ -890,12 +1150,12 @@ export function CameraRig() {
         const sideView = useAtlasStore.getState().view === 'SIDE'
         const base = realMode
           ? realPositionShot(size.width, size.height)
-          : atlasShot(size.width, size.height)
+          : atlasBaseShot(size.width, size.height)
         home.current = base
         desired.current.target.copy(base.target)
         // 科普排列（SIDE）把朝向锁在信息图构图上；
         // 一旦进入 3D 或真实位置模式，朝向归用户，只在他没缩放时贴合尺度。
-        if (sideView && !drag.current.active) {
+        if (sideView && !drag.current.active && !touchDrag.current) {
           desired.current.yaw = base.yaw + pointer.current.x * 0.035
           // 俯仰**不再跟着指针动**：侧视图要的是"黄道面合成一条线"，
           // 哪怕 1.6° 的指针俯仰也会让冥王星那条 162 单位的轨道上下张开几个单位。

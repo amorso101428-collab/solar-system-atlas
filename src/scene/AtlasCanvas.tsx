@@ -20,6 +20,9 @@ import { glStats } from '../utils/glStats'
 import { PERF_MAX_DPR } from '../utils/perf'
 import { PerfGovernor } from './PerfGovernor'
 import { FrameProfiler } from './FrameProfiler'
+import { getLayoutMode } from '../responsive/device'
+import { maxDprFor } from '../responsive/renderProfile'
+import { QualityController } from '../performance/QualityController'
 
 /**
  * 3D 层只负责空间与镜头；UI 全部在 DOM 里（DESIGN.md §20 的分层原则）。
@@ -34,7 +37,11 @@ export function AtlasCanvas() {
   return (
     <div className="canvas-layer">
       <Canvas
-        dpr={[1, PERF_MAX_DPR]}
+        /**
+         * V1 §32：设备像素比上限按布局模式收（手机 1.35 / 平板 1.6 / 桌面 1.5）。
+         * 桌面档位用的还是原来的 PERF_MAX_DPR，数值没有任何变化。
+         */
+        dpr={[1, maxDprFor(getLayoutMode())]}
         gl={{ antialias: false, powerPreference: 'high-performance', alpha: false }}
         orthographic
         camera={{ position: [72, 0, 900], near: 1, far: 4000, zoom: 1, top: 44, bottom: -44, left: -78, right: 78 }}
@@ -74,6 +81,8 @@ export function AtlasCanvas() {
           <IntroCosmos visible={inIntro} />
           {/* v9.3：按实测帧率自动调整渲染分辨率（核显机器上救帧率） */}
           <PerfGovernor />
+          {/* V1.1 §11：移动端 / 平板的自适应画质（桌面不参与） */}
+          <QualityController />
           {/* v9.4：主线程耗时采样（HUD 的 CPU 一栏） */}
           <FrameProfiler />
           <CameraRig />

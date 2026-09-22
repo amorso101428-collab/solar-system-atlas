@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { useAtlasStore } from '../state/atlasStore'
+import { timelineTime } from '../state/timelineTime'
 
 // 世界时钟。
 //
@@ -53,7 +53,13 @@ export const yearControl = {
 
 /** 每帧推进（由 CameraRig 在其它 useFrame 之前调用） */
 export function advanceYear(delta: number): void {
-  const target = useAtlasStore.getState().timelineYear
+  /**
+   * V1.1 §5 / §6：追赶的是**连续目标**（timelineTime.target），
+   * 不是 store 里那个按 50ms 节流写出来的 UI 年份。
+   * 于是拖动时间轴时行星 / 月球 / 航天器 / 彗星是连续滑行；
+   * 桌面端两条值永远相等，行为与 V1 一致。
+   */
+  const target = timelineTime.target
   const diff = target - yearControl.value
   if (Math.abs(diff) < 0.01) {
     yearControl.value = target
@@ -70,4 +76,5 @@ export function smoothYear(): number {
 /** 直接落到某一年（深链、或从档案里跳年份时用） */
 export function setSmoothYear(year: number): void {
   yearControl.value = year
+  timelineTime.target = year
 }

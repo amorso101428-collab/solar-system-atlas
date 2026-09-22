@@ -5,6 +5,10 @@ import { useT } from '../i18n'
 import { yearOf } from '../utils/formatters'
 import { setTimeScale } from '../utils/clock'
 import { audio } from '../audio/audioManager'
+import { useDeviceClass } from '../responsive/useDevice'
+import { DrawerMotion } from '../motion/DrawerMotion'
+import { attachTimelineGesture } from '../gesture/TimelineGesture'
+import { pushTimelineTarget } from '../state/timelineTime'
 
 const SPAN = CURRENT_YEAR - FIRST_LAUNCH_YEAR
 
@@ -96,8 +100,18 @@ export function Timeline() {
   const select = useAtlasStore((state) => state.select)
   const playing = useAtlasStore((state) => state.playing)
   const togglePlay = useAtlasStore((state) => state.togglePlay)
+  const timelineExpanded = useAtlasStore((state) => state.timelineExpanded)
+  const device = useDeviceClass()
+  /**
+   * 时间轴抽屉只在**手机**上启用（V1.1 §2：collapsed 约 72px）。
+   * iPad 继续用 V1 那套紧凑时间线，桌面完全不变。
+   */
+  const timelineDrawer = device === 'mobile'
   const trackRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
+  const panelRef = useRef<HTMLElement>(null)
+  const drawerRef = useRef<DrawerMotion | null>(null)
+  const drawerMetricsRef = useRef({ collapsed: 72, expanded: 320 })
 
   const { spans, events } = useMemo(buildTimeline, [])
 
@@ -124,24 +138,101 @@ export function Timeline() {
   }, [timelineYear])
 
   const updateFromClientX = useCallback(
-    (clientX: number) => {
+    (clientX: number, throttle = false) => {
       const rect = trackRef.current?.getBoundingClientRect()
       if (!rect) return
       const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
       // 拖动时间轴时的极轻 tick（v6 §7）：audioManager 内部按 60ms 节流，
       // 绝不是每一帧一声。
       audio.emit('timeline.tick')
-      setTimelineYear(FIRST_LAUNCH_YEAR + ratio * SPAN)
+      const year = FIRST_LAUNCH_YEAR + ratio * SPAN
+      /**
+       * V1.1 §6：手指拖动期间，**场景用的连续值**直接写进 timelineTime，
+       * store 里的年份（UI 文字 / 统计）按 50ms 节流同步。
+       * 桌面鼠标拖动走 else 分支，与 V1 完全一致。
+       */
+      if (throttle) {
+        const publish = pushTimelineTarget(year, false)
+        if (publish !== null) useAtlasStore.getState().syncTimelineYear(publish)
+        return
+      }
+      setTimelineYear(year)
     },
     [setTimelineYear]
   )
 
+  /**
+   * ------------------------- 触摸惯性（V1 §22） -------------------------
+   *
+   * 手指划一下、抬起来之后，时间线要自己滑一段再停下，而不是"一格一格地跳"。
+   *
+   *   finger drag → release → inertia → decelerate → settle
+   *
+   * 惯性只接**手指**：鼠标拖动在桌面上仍然一抬手就停（桌面零变化）。
+   */
+  const flingRef = useRef({ x: 0, time: 0, velocity: 0, touch: false })
+  const inertiaRef = useRef<number | null>(null)
+
+  const stopInertia = useCallback(() => {
+    if (inertiaRef.current !== null) {
+      cancelAnimationFrame(inertiaRef.current)
+      inertiaRef.current = null
+    }
+  }, [])
+
+  useEffect(() => stopInertia, [stopInertia])
+
+  const startInertia = useCallback(() => {
+    const rect = trackRef.current?.getBoundingClientRect()
+    if (!rect) return
+    /** 速度单位：年 / 毫秒（和拖动同一条坐标换算） */
+    let velocity = flingRef.current.velocity
+    if (Math.abs(velocity) < 0.0006) return
+    let last = performance.now()
+    const step = (now: number) => {
+      const dt = Math.min(now - last, 40)
+      last = now
+      const next = useAtlasStore.getState().timelineYear + velocity * dt
+      const clamped = Math.min(CURRENT_YEAR, Math.max(FIRST_LAUNCH_YEAR, next))
+      /** 连续值立刻生效（场景），UI 文字节流同步（§6） */
+      const publish = pushTimelineTarget(clamped, false)
+      if (publish !== null) useAtlasStore.getState().syncTimelineYear(publish)
+      // 摩擦：每毫秒衰减 0.3%，约 0.6s 收住（spring 的观感交给 clocks 的阻尼追赶）
+      velocity *= Math.pow(0.997, dt)
+      if (Math.abs(velocity) < 0.0006 || clamped !== next) {
+        inertiaRef.current = null
+        useAtlasStore.getState().syncTimelineYear(clamped)
+        audio.emit('timeline.commit')
+        return
+      }
+      inertiaRef.current = requestAnimationFrame(step)
+    }
+    inertiaRef.current = requestAnimationFrame(step)
+  }, [])
+
   useEffect(() => {
     const onMove = (event: PointerEvent) => {
-      if (draggingRef.current) updateFromClientX(event.clientX)
+      if (!draggingRef.current) return
+      updateFromClientX(event.clientX, flingRef.current.touch)
+      const now = performance.now()
+      const dt = Math.max(now - flingRef.current.time, 1)
+      const rect = trackRef.current?.getBoundingClientRect()
+      if (rect) {
+        const deltaYears = ((event.clientX - flingRef.current.x) / rect.width) * SPAN
+        // 只保留"最新一帧"的速度，去掉前面几帧的噪声
+        flingRef.current.velocity = flingRef.current.velocity * 0.6 + (deltaYears / dt) * 0.4
+      }
+      flingRef.current.x = event.clientX
+      flingRef.current.time = now
     }
-    const onUp = () => {
+    const onUp = (event: PointerEvent) => {
+      const wasDragging = draggingRef.current
       draggingRef.current = false
+      // 手指划出去的惯性（鼠标不参与，桌面行为不变）
+      if (wasDragging && flingRef.current.touch && event.pointerType !== 'mouse') {
+        startInertia()
+        return
+      }
       // 松手一记"确认音"（v7 §14）：拖动过程只有低频 tick，不能 100 次拖动 100 个声音
       audio.emit('timeline.commit')
     }
@@ -151,7 +242,106 @@ export function Timeline() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
-  }, [updateFromClientX])
+  }, [startInertia, updateFromClientX])
+
+  /**
+   * ------------------- 两态抽屉 + 弹簧吸附（V1.1 §2 / §3 / §4） -------------------
+   *
+   *   手指竖向拖 → 抽屉跟手（连续位置）
+   *   松手       → 速度 + 位置决定吸附到 collapsed / expanded
+   *   横向拖      → 不参与，仍然交给轨道去拖年份
+   *
+   * 位置写在 `--tl-y` 上（transform），面板高度固定为 expanded，
+   * 于是拖动只碰合成层。桌面端整段不执行。
+   */
+  useEffect(() => {
+    if (!timelineDrawer) return
+    const element = panelRef.current
+    if (!element) return
+
+    const readMetrics = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+      const safeBottom =
+        Number.parseFloat(getComputedStyle(element).getPropertyValue('--safe-bottom')) || 0
+      // §3：collapsed = 72 + 安全区；expanded = clamp(0.46vh, 320, 520)
+      const collapsed = 72 + safeBottom
+      const desired = Math.min(Math.max(viewportHeight * 0.46, 320), 520)
+      // 短屏（横屏手机）不能让抽屉比视口还高，至少给场景留 140px
+      const expanded = Math.max(collapsed + 40, Math.min(desired, viewportHeight - 140))
+      return { collapsed, expanded }
+    }
+
+    const metrics = readMetrics()
+    drawerMetricsRef.current = metrics
+    const motion = new DrawerMotion({
+      position: metrics.collapsed,
+      onFrame: (position) => {
+        element.style.setProperty('--tl-y', `${(metrics.expanded - position).toFixed(1)}px`)
+      },
+      onSettle: (position) => {
+        const expanded = position > (metrics.collapsed + metrics.expanded) / 2
+        if (expanded !== useAtlasStore.getState().timelineExpanded) {
+          useAtlasStore.getState().setTimelineExpanded(expanded)
+        }
+      },
+    })
+    drawerRef.current = motion
+    element.style.setProperty('--tl-h', `${metrics.expanded}px`)
+    motion.jumpTo(metrics.collapsed)
+
+    const detachGesture = attachTimelineGesture({
+      element,
+      motion,
+      snaps: () => [metrics.collapsed, metrics.expanded],
+      softMin: metrics.collapsed,
+      softMax: metrics.expanded,
+      onDragStart: () => {
+        element.dataset.dragging = 'yes'
+      },
+      onDragEnd: () => {
+        delete element.dataset.dragging
+      },
+    })
+
+    const onResize = () => {
+      const next = readMetrics()
+      metrics.collapsed = next.collapsed
+      metrics.expanded = next.expanded
+      drawerMetricsRef.current = metrics
+      element.style.setProperty('--tl-h', `${metrics.expanded}px`)
+      motion.setPosition(Math.min(Math.max(motion.position, metrics.collapsed), metrics.expanded))
+    }
+    window.addEventListener('resize', onResize, { passive: true })
+    window.visualViewport?.addEventListener('resize', onResize, { passive: true })
+
+    return () => {
+      detachGesture()
+      window.removeEventListener('resize', onResize)
+      window.visualViewport?.removeEventListener('resize', onResize)
+      motion.dispose()
+      drawerRef.current = null
+    }
+  }, [timelineDrawer])
+
+  /** 点击把手：collapsed ⇄ expanded（§2 的两个状态） */
+  const toggleDrawer = useCallback(() => {
+    const motion = drawerRef.current
+    if (!motion) return
+    const { collapsed, expanded } = drawerMetricsRef.current
+    const open = motion.position > (collapsed + expanded) / 2
+    motion.animateTo(open ? collapsed : expanded)
+    audio.emit(open ? 'menu.close' : 'menu.open')
+  }, [])
+
+  /** 程序化控制（菜单、自检、深链）：store 变了就用同一条弹簧追过去 */
+  useEffect(() => {
+    const motion = drawerRef.current
+    if (!motion || motion.holding) return
+    const { collapsed, expanded } = drawerMetricsRef.current
+    const target = timelineExpanded ? expanded : collapsed
+    if (Math.abs(target - motion.position) < 1 && !motion.moving) return
+    motion.animateTo(target)
+  }, [timelineExpanded])
 
   // 回放：让整张图谱的运动速度提上去（世界时钟的倍率）
   useEffect(() => {
@@ -184,8 +374,36 @@ export function Timeline() {
     .filter((event) => event.importance === 1 && Math.abs(event.year - timelineYear) <= 2)
     .slice(0, 3)
 
+  /**
+   * 抽屉展开后的事件清单（§2）：
+   * 按"到此刻为止已经发生的重要事件"倒序取 8 条，点击直接聚焦到那个对象。
+   */
+  const drawerEvents = timelineDrawer
+    ? events
+        .filter((event) => event.year <= timelineYear)
+        .sort((a, b) => b.year - a.year)
+        .slice(0, 8)
+    : []
+
   return (
-    <section className="timeline" data-era={era}>
+    <section
+      className="timeline"
+      data-era={era}
+      ref={panelRef}
+      data-open={timelineExpanded ? 'yes' : 'no'}
+    >
+      {timelineDrawer ? (
+        <div className="timeline__grab">
+          <button
+            type="button"
+            aria-label={t('timeline.showing')}
+            aria-expanded={timelineExpanded}
+            onClick={toggleDrawer}
+          >
+            <i />
+          </button>
+        </div>
+      ) : null}
       <div className="timeline__head">
         <span className="timeline__year">{timelineYear}</span>
         <span className="timeline__stat">
@@ -223,7 +441,14 @@ export function Timeline() {
         className="timeline__track"
         ref={trackRef}
         onPointerDown={(event) => {
+          stopInertia()
           draggingRef.current = true
+          flingRef.current = {
+            x: event.clientX,
+            time: performance.now(),
+            velocity: 0,
+            touch: event.pointerType !== 'mouse',
+          }
           updateFromClientX(event.clientX)
         }}
       >
@@ -292,6 +517,33 @@ export function Timeline() {
 
         <div className="timeline__cursor" style={{ left: `${percent(timelineYear)}%` }} />
       </div>
+
+      {timelineDrawer ? (
+        <div className="timeline__drawer">
+          <div className="timeline__drawer-head">
+            <span>TIME / {Math.floor(timelineYear)}</span>
+            <span>
+              {drawerEvents.length} {t('timeline.events')}
+            </span>
+          </div>
+          <ul className="timeline__drawer-list">
+            {drawerEvents.map((event) => (
+              <li key={event.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    audio.emit('object.focus')
+                    select(event.id)
+                  }}
+                >
+                  <b>{event.year}</b>
+                  <span>{event.title.split(' · ')[0]}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
     </section>
   )

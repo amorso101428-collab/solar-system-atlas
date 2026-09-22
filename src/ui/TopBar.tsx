@@ -7,6 +7,7 @@ import { useAtlasStore, type SceneArrangement } from '../state/atlasStore'
 import { useT, usePick } from '../i18n'
 import { getCatalogStats } from '../scene/EarthCatalog'
 import { audio } from '../audio/audioManager'
+import { useDeviceClass } from '../responsive/useDevice'
 
 const ARRANGEMENTS: SceneArrangement[] = ['SIDE', 'ORBIT3D', 'REAL']
 
@@ -34,6 +35,11 @@ const FILTER_GROUPS: Array<{ label: string; ids: string[] }> = [
 export function TopBar() {
   const t = useT()
   const pickText = usePick()
+  /**
+   * V1：桌面端这个值是 'desktop'，下面那枚全屏搜索的关闭键因此
+   * **不会出现在 DOM 里**——桌面端连标记都与之前一致。
+   */
+  const device = useDeviceClass()
   const language = useAtlasStore((state) => state.language)
   const toggleLanguage = useAtlasStore((state) => state.toggleLanguage)
   const guideOpen = useAtlasStore((state) => state.guideOpen)
@@ -55,7 +61,13 @@ export function TopBar() {
   const focusComet = useAtlasStore((state) => state.focusComet)
   const focusRegion = useAtlasStore((state) => state.focusRegion)
   const [query, setQuery] = useState('')
-  const [searchOpen, setSearchOpen] = useState(false)
+  /**
+   * V1：搜索面板的开关搬到 store 里（原来只存在于 TopBar 的局部 state）。
+   * 移动端底部动作条的 SEARCH、以及 Esc，都要能打开 / 关掉同一个面板；
+   * 桌面端的按钮行为与之前完全一致。
+   */
+  const searchOpen = useAtlasStore((state) => state.searchOpen)
+  const setSearchOpen = useAtlasStore((state) => state.setSearchOpen)
   const [objectsOpen, setObjectsOpen] = useState(false)
   const [viewMenuOpen, setViewMenuOpen] = useState(false)
   const hideArtificial = useAtlasStore((state) => state.hideArtificial)
@@ -368,6 +380,20 @@ export function TopBar() {
 
       {searchOpen ? (
         <div className="searchpanel">
+          {device !== 'desktop' ? (
+            <button
+              type="button"
+              className="searchpanel__close"
+              aria-label={t('archive.close')}
+              onClick={() => {
+                audio.emit('menu.close')
+                setSearchOpen(false)
+                setQuery('')
+              }}
+            >
+              ✕
+            </button>
+          ) : null}
           <input
             autoFocus
             value={query}

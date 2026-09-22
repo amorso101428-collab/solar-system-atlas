@@ -7,6 +7,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { PERF_MAX_DPR } from '../utils/perf'
 import { createGpuTimer, gpuStats } from '../utils/perfSampler'
+import { useQualitySettings } from '../performance/useQuality'
 
 /**
  * 后处理（方案书 §11）：HDR 渲染 → Bloom → 电影级色调映射。
@@ -21,6 +22,12 @@ export function PostFX() {
   const size = useThree((state) => state.size)
   // PerfGovernor 改 dpr 时，这里必须跟着重建尺寸，否则画面会被拉伸
   const dpr = useThree((state) => state.viewport.dpr)
+  /**
+   * V1.1 §12 / §15：bloom 是阶递降级里的第 2 / 4 / 9 步。
+   * 桌面档位（ULTRA）下 strength ×1、分辨率 ×0.5、后处理开启 ——
+   * 与 V1 的画面逐字一致。
+   */
+  const quality = useQualitySettings()
   const bloomRef = useRef<UnrealBloomPass | null>(null)
   // v9.4：真实 GPU 耗时（EXT_disjoint_timer_query_webgl2）
   const timer = useMemo(
@@ -73,23 +80,31 @@ export function PostFX() {
      * 也就是说像素量直接决定它吃掉多少 GPU 时间。它是模糊效果，半个分辨率
      * 肉眼几乎看不出差别，成本却降到大约 1/4——核显上这是最划算的一刀。
      */
-    bloomRef.current?.setSize(
-      Math.max(1, Math.round(size.width * ratio * 0.5)),
-      Math.max(1, Math.round(size.height * ratio * 0.5))
-    )
+    if (bloomRef.current) {
+      bloomRef.current.strength = 0.3 * quality.bloomStrength
+      bloomRef.current.setSize(
+        Math.max(1, Math.round(size.width * ratio * quality.bloomResolution)),
+        Math.max(1, Math.round(size.height * ratio * quality.bloomResolution))
+      )
+    }
     /**
      * v9.4：后处理渲染目标的显存估算（半浮点 RGBA = 8 字节/像素）
      * 两张全分辨率读写缓冲 + Bloom 降采样链（约 1/3 像素量）。
      */
     const pixels = size.width * ratio * size.height * ratio
     gpuStats.renderTargetBytes = Math.round(pixels * 8 * 2 + pixels * 8 * 0.33)
-  }, [composer, gl, size.height, size.width, dpr])
+  }, [composer, gl, size.height, size.width, dpr, quality])
 
   // priority 1：接管渲染，R3F 不再自己绘制场景
   useFrame(() => {
     gl.info.reset()
     timer.begin()
-    composer.render()
+    /**
+     * §12 第 9 步：后处理整体关掉之后直接渲染主场景。
+     * 这不是"降级到糊"，而是先走完前面 8 步之后的最后手段。
+     */
+    if (quality.postFx) composer.render()
+    else gl.render(scene, camera)
     timer.end()
   }, 1)
 

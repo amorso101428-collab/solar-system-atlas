@@ -15,6 +15,7 @@ import { worldNow } from '../utils/clock'
 import { useAtlasStore } from '../state/atlasStore'
 import { mapAuToVisual } from '../astronomy/visualScale'
 import { focusBackgroundDim, orbitRevealFactor, revealRamp, sceneReveal } from '../utils/reveal'
+import { adaptiveQuality } from '../performance/AdaptiveQualityManager'
 
 /**
  * 行星轨道 + 深空轨迹 + 小行星带 / 柯伊伯带 / 奥尔特云（方案书 §14）。
@@ -438,7 +439,14 @@ export function Orbits() {
     if (asteroidPoints) {
       const material = asteroidPoints.material as THREE.ShaderMaterial
       // 细节等级：缩到最远 ≈0.05（只有最早出现的那批），推到最近 ≈1（全开）
-      const detail = THREE.MathUtils.clamp((300 - viewHeight) / (300 - 26), 0, 1)
+      /**
+       * V1.1 §12 第 3 步：小行星密度是阶梯里的独立一级。
+       * 距离 LOD（§17：far 低密度 / near 代表性个体）已经在 uDetail 里了，
+       * 这里再乘一层画质倍率——桌面恒为 1，画面与 V1 完全一致。
+       */
+      const detail =
+        THREE.MathUtils.clamp((300 - viewHeight) / (300 - 26), 0, 1) *
+        adaptiveQuality.settings.beltDensity
       material.uniforms.uDetail.value = detail
       material.uniforms.uBaseSize.value = beltParticleSize(viewHeight, 1.4)
       material.uniforms.uPixelRatio.value = Math.min(gl.getPixelRatio(), 2)

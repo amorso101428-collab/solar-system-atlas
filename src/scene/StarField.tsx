@@ -4,6 +4,8 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { createStarMaterial } from './materials'
 import { useAtlasStore } from '../state/atlasStore'
 import { focusBackgroundDim, sceneReveal } from '../utils/reveal'
+import { currentRenderProfile } from '../responsive/renderProfile'
+import { useQualitySettings } from '../performance/useQuality'
 
 /**
  * 宇宙背景（方案书 §21）。
@@ -36,18 +38,27 @@ function StarLayer({ spec }: { spec: LayerSpec }) {
   const material = useMemo(() => createStarMaterial(), [])
   const groupRef = useRef<THREE.Points>(null)
   const gl = useThree((state) => state.gl)
+  /** V1.1 §12 / §17：星点数量再乘一层自适应画质倍率（桌面恒为 1） */
+  const quality = useQualitySettings()
+  /**
+   * V1 §31：星点数量按渲染档位缩放（桌面 ×1 / 平板 ×0.7 / 手机 ×0.5）。
+   * 桌面倍率是 1，几何数据与 V1 之前逐字节相同。
+   */
+  const count = Math.round(
+    spec.count * currentRenderProfile().starScale * quality.starScale
+  )
 
   const geometry = useMemo(() => {
-    const positions = new Float32Array(spec.count * 3)
-    const scales = new Float32Array(spec.count)
-    const tints = new Float32Array(spec.count * 3)
+    const positions = new Float32Array(count * 3)
+    const scales = new Float32Array(count)
+    const tints = new Float32Array(count * 3)
     const color = new THREE.Color()
     let seed = spec.seed
     const rand = () => {
       seed = (seed * 1664525 + 1013904223) % 4294967296
       return seed / 4294967296
     }
-    for (let i = 0; i < spec.count; i++) {
+    for (let i = 0; i < count; i++) {
       const r = spec.inner + rand() * (spec.radius - spec.inner)
       const theta = rand() * Math.PI * 2
       const phi = Math.acos(2 * rand() - 1)
@@ -67,7 +78,7 @@ function StarLayer({ spec }: { spec: LayerSpec }) {
     geo.setAttribute('aScale', new THREE.BufferAttribute(scales, 1))
     geo.setAttribute('aTint', new THREE.BufferAttribute(tints, 3))
     return geo
-  }, [spec])
+  }, [spec, count])
 
   useEffect(() => {
     material.uniforms.uPixelRatio.value = Math.min(gl.getPixelRatio(), 2)

@@ -14,6 +14,8 @@ import { BELT_RANGE, KUIPER_RANGE, OORT_RANGE } from '../utils/layout'
 import { COMETS } from '../data/comets'
 import { cometPosition, cometSunDistance } from '../astronomy/cometOrbit'
 import { satelliteVisibility } from '../utils/reveal'
+import { getLayoutMode } from '../responsive/device'
+import { adaptiveQuality } from '../performance/AdaptiveQualityManager'
 
 interface PickTarget {
   id: string
@@ -25,6 +27,9 @@ interface PickTarget {
 
 const CLICK_SLOP = 5
 
+/** V1.1 §22：手指的 tap 容差（鼠标仍然是 5px） */
+const TOUCH_CLICK_SLOP = 10
+
 /** 命中区与视觉大小分离（方案书 §6.2）：标记很小，但一定点得到 */
 const HIT_RADIUS: Record<PickTarget['kind'], number> = {
   planet: 24,
@@ -33,6 +38,18 @@ const HIT_RADIUS: Record<PickTarget['kind'], number> = {
   region: 30,
   sun: 34,
   comet: 20,
+}
+
+/**
+ * V1 §24：手指没有鼠标那么准。
+ * 手机上把命中区整体放大到 2.2 倍（物体那一档 15px → 33px），
+ * 视觉半径不变——"看得见的小点，点得到的靶心"。
+ */
+const MOBILE_HIT_SCALE = 2.2
+
+function hitRadiusOf(kind: PickTarget['kind']): number {
+  const base = HIT_RADIUS[kind]
+  return getLayoutMode() === 'desktop' ? base : Math.round(base * MOBILE_HIT_SCALE)
 }
 
 /**
@@ -111,7 +128,13 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
         Math.abs(event.clientY - pointerRef.current.downY)
       pointerRef.current.active = false
       if (event.button !== 0) return
-      if (moved > CLICK_SLOP) return
+      /**
+       * V1.1 §22：Tap 与 Drag 必须分开判。
+       * 鼠标 5px（V1 原值，桌面不变），手指 10px —— 手指按下时天然会挪几像素，
+       * 用 5px 会在旋转太阳系的时候误选到星球。
+       */
+      const slop = event.pointerType === 'mouse' ? CLICK_SLOP : TOUCH_CLICK_SLOP
+      if (moved > slop) return
       if (event.target !== gl.domElement) return
 
       const hit = pick(targetsRef.current, event.clientX, event.clientY)
@@ -143,6 +166,8 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
     const { hoveredId, selectedObjectId, activeFilter, timelineYear, mode } =
       useAtlasStore.getState()
     const { hideArtificial, hideAllOrbits } = useAtlasStore.getState()
+    /** V1 §28：总览里的手机只留"主视觉对象"，聚焦某个系统时才放开第二档 */
+    const atlasOverview = useAtlasStore.getState().focusKind === 'ATLAS'
     const artificialHidden = hideArtificial || hideAllOrbits
     // 自然卫星被隐藏时，它们的标签与命中区一起退场（v6 §13）
     const moonsHidden = useAtlasStore.getState().hideMoons
@@ -172,7 +197,7 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
     if (introVisible) {
       const sun = project(new THREE.Vector3(0, 0, 0))
       if (sun.visible) {
-        const radius = Math.max(screenRadiusOf(4.5), HIT_RADIUS.sun)
+        const radius = Math.max(screenRadiusOf(4.5), hitRadiusOf('sun'))
         targets.push({ id: 'sun', kind: 'sun', x: sun.x, y: sun.y, radius })
       }
     }
@@ -220,12 +245,29 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
           kind: 'planet',
           x,
           y,
-          radius: Math.max(screenRadius, HIT_RADIUS.planet),
+          radius: Math.max(screenRadius, hitRadiusOf('planet')),
         })
       }
     }
 
     // ---- 天然卫星：镜头靠近某颗行星时逐层展开，并按屏幕密度去重 ----
+    /**
+     * V1 §23：Semantic LOD。
+     *
+     * 数据一个都不删，只是手机屏幕装不下桌面那份标签密度：
+     *   · 三档物体（importance 3+）默认不出标签，选中 / 悬停时照常出现
+     *   · 标签间距整体放大 35%，避免叠字
+     *   · 小卫星（reveal < 0.42 那档）在手机上直接让位
+     * 桌面端 mobileLod === false，所有门限与 V1 之前逐字相同。
+     */
+    const mobileLod = getLayoutMode() !== 'desktop'
+    /**
+     * V1.1 §12 第 5 / 13 步：标签数量是降级阶梯里的独立一级。
+     * labelDensity 从 1 一路降到 0.45，标签间距随之收紧——
+     * 桌面恒为 1，标签排布与 V1 逐字相同。
+     */
+    const labelDensity = adaptiveQuality.settings.labelDensity
+    const gapScale = (mobileLod ? 1.35 : 1) * (2 - Math.min(1, labelDensity))
     const moonOccupied: Array<{ x: number; y: number; importance: number }> = []
     const orderedMoons = [...world.layout.moons].sort((a, b) => b.def.radius - a.def.radius)
     for (const moon of orderedMoons) {
@@ -246,9 +288,11 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
       // 大卫星永远有名字；小卫星只在推近到能看清的时候才出现，避免标签糊成一片
       const isMajor = moon.def.radius >= 0.09
       const mine = reveal * (isMajor ? 1 : 0.85)
-      let blocked = !isMajor && reveal < 0.42
+      let blocked = !isMajor && reveal < (mobileLod ? 0.58 : 0.42)
+      // 画质降到中档以下时，小卫星的标签先让位（§12 第 5 步）
+      if (!blocked && labelDensity < 0.6 && !isMajor) blocked = true
       if (!blocked) {
-        const gap = isMajor ? 30 : 42
+        const gap = (isMajor ? 30 : 42) * gapScale
         for (const used of moonOccupied) {
           if (Math.hypot(used.x - x, used.y - y) < gap) {
             blocked = true
@@ -278,7 +322,7 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
           kind: 'moon',
           x,
           y,
-          radius: Math.max(Math.min(screenRadius, 20), HIT_RADIUS.moon),
+          radius: Math.max(Math.min(screenRadius, 20), hitRadiusOf('moon')),
         })
       }
     }
@@ -337,13 +381,14 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
        * 现在两条判断：锚点距离取两者中更严的那档，外加同一高度带里的水平间距。
        */
       const gapOf = (level: number) => (level === 1 ? 34 : level === 2 ? 58 : 86)
+      const gap = gapOf(importance) * gapScale
       let blocked = false
       for (const used of occupied) {
         const dy = Math.abs(used.y - y)
         const dx = Math.abs(used.x - x)
         if (
-          Math.hypot(dx, dy) < Math.max(gapOf(importance), gapOf(used.importance)) ||
-          (dy < 16 && dx < 120)
+          Math.hypot(dx, dy) < Math.max(gap, gapOf(used.importance) * gapScale) ||
+          (dy < 16 * gapScale && dx < 120 * gapScale)
         ) {
           blocked = true
           break
@@ -352,8 +397,15 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
       if (!blocked) occupied.push({ x, y, importance })
 
       const onScreen = visible && x > -160 && x < size.width + 160 && y > -80 && y < size.height + 80
+      /**
+       * 手机上默认不出标签的档位（选中 / 悬停时例外）：
+       *   总览     只留 importance 1 —— 手机总览上的注释控制在个位数
+       *   聚焦系统 放开到 importance 2 —— 这时候用户就是在读这个系统
+       */
+      const lodLimit = atlasOverview ? 1 : 2
+      const lodHidden = mobileLod && importance > lodLimit && !isHovered && !isSelected
       const opacity =
-        !artificialHidden && introVisible && onScreen && !blocked
+        !artificialHidden && introVisible && onScreen && !blocked && !lodHidden
           ? Math.min(1, weight) * reveal * 0.95 * uiPenalty(x, y)
           : 0
       const side = anchor.labelSide
@@ -374,7 +426,10 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
           kind: 'object',
           x,
           y,
-          radius: isSelected || isHovered ? HIT_RADIUS.object + 6 : HIT_RADIUS.object,
+          radius:
+            isSelected || isHovered
+              ? hitRadiusOf('object') + 6
+              : hitRadiusOf('object'),
         })
       }
     }
@@ -475,7 +530,7 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
           }
         )
         if (onScreen) {
-          targets.push({ id: comet.id, kind: 'comet', x, y, radius: HIT_RADIUS.comet })
+          targets.push({ id: comet.id, kind: 'comet', x, y, radius: hitRadiusOf('comet') })
         }
       }
     }

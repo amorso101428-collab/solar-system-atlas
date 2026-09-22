@@ -17,8 +17,12 @@ import { AtlasQuote } from './ui/QuoteTicker'
 import { SystemTelemetry } from './ui/SystemTelemetry'
 import { CreatorPanel } from './ui/CreatorCard'
 import { BootScreen } from './ui/BootScreen'
+import { MobileNav } from './ui/MobileNav'
+import { MobileMenu } from './ui/MobileMenu'
+import { MobileSheet } from './ui/MobileSheet'
 import { audio } from './audio/audioManager'
 import { useAtlasStore } from './state/atlasStore'
+import { useDeviceClass, useLayoutMode } from './responsive/useDevice'
 import { OBJECT_BY_ID, FIRST_LAUNCH_YEAR, CURRENT_YEAR } from './data/objects'
 import { useT } from './i18n'
 import { requestOrbitPose, setOrbitPoseImmediate, setPositionPoseImmediate } from './utils/orbitPose'
@@ -70,9 +74,43 @@ export default function App() {
     audio.autoStart()
   }, [])
 
-  // 深链：?object=iss&year=2010 / ?view=atlas（跳过开场）
+// 深链：?object=iss&year=2010 / ?view=atlas（跳过开场）
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
+    /**
+     * V1 §06：手机竖屏的默认落点。
+     *
+     * 图示排列（侧视）把八颗行星排成同一条水平线——那在 1600×900 上是一张
+     * 漂亮的工程图，在 0.46 宽高比的手机竖屏上只会被压成中间一条细线。
+     * 所以手机竖屏第一次进站时直接落在"俯视的实时太阳系"上：太阳居中偏上、
+     * 行星绕着它排开，配合底部抽屉，正好是手机能读的构图。
+     *
+     * 只在这个页面**没有**任何深链参数时生效；用户手动切回"侧视排列"也不会被覆盖。
+     */
+    const hasDeepLink = [
+      'object',
+      'body',
+      'region',
+      'comet',
+      'position',
+      'hide',
+      'grid',
+      'weather',
+      'catalog',
+      'music',
+      'year',
+    ].some((key) => params.has(key))
+      // ?view=atlas 只是"跳过开场"，它不指定排列方式，所以不影响手机默认落点
+      || (params.has('view') && params.get('view') !== 'atlas')
+    if (!hasDeepLink && layoutMode === 'mobile-portrait') {
+      setPositionPoseImmediate(1)
+      setOrbitPoseImmediate(1)
+      useAtlasStore.setState({
+        positionMode: 'REAL',
+        view: 'ORBIT3D',
+        atlasPose: false,
+      })
+    }
     const objectId = params.get('object')
     const bodyId = params.get('body')
     const view = params.get('view')
@@ -193,6 +231,11 @@ export default function App() {
   const focused = focusKind !== 'ATLAS'
   const view = useAtlasStore((state) => state.view)
   const gridVisible = useAtlasStore((state) => state.gridVisible)
+  const searchOpen = useAtlasStore((state) => state.searchOpen)
+  const mobileMenuOpen = useAtlasStore((state) => state.mobileMenuOpen)
+  const layoutMode = useLayoutMode()
+  const device = useDeviceClass()
+  const sheetState = useAtlasStore((state) => state.sheetState)
   // 左上角有返回键时，主标题要往下让位，否则两者会叠在一起（方案书 §15）
   const hasBack = focusKind !== 'ATLAS' || view === 'ORBIT3D'
   // 右侧出现档案面板时，顶部导航与底部时间轴都要让位，不能钻到面板底下
@@ -202,6 +245,16 @@ export default function App() {
     focusKind === 'REGION' ||
     focusKind === 'COMET' ||
     (archiveOpen && focusKind === 'OBJECT')
+
+  /**
+   * V1.1 §28：抽屉 / 菜单 / 搜索打开时锁住页面滚动。
+   * 站点本身是固定布局（不会滚），但 iOS Safari 的橡皮筋会让
+   * 整页跟着手指动一下——这就是"抽屉里滚到底，页面却弹了一下"。
+   */
+  useEffect(() => {
+    const locked = panelOpen || mobileMenuOpen || searchOpen
+    document.documentElement.dataset.sheetOpen = locked ? 'yes' : 'no'
+  }, [panelOpen, mobileMenuOpen, searchOpen])
 
   return (
     <div
@@ -213,6 +266,13 @@ export default function App() {
       data-panel={panelOpen ? 'open' : 'closed'}
       data-grid={gridVisible ? 'on' : 'off'}
       data-year={timelineYear}
+      /**
+       * V1：设备与布局模式。CSS 里所有移动端规则都挂在这两个属性上，
+       * 桌面端（data-device="desktop"）一条都不会匹配——这是"桌面零变化"的开关。
+       */
+      data-device={device}
+      data-layout={layoutMode}
+      data-sheet={sheetState}
     >
       <AtlasCanvas />
       <div id="label-layer" className="label-layer" />
@@ -259,6 +319,12 @@ export default function App() {
         <CatalogPanel />
         {/* v8.1：专门的音乐播放界面（整张专辑 + 播放源切换） */}
         <MusicHall />
+
+        {/* V1 §16 / §17：移动端顶部导航、底部动作条与菜单抽屉 */}
+        <MobileNav />
+        <MobileMenu />
+        {/* V1 §06：详情 Bottom Sheet 的拖拽吸附（不改动档案组件本身的 DOM） */}
+        <MobileSheet />
       </div>
 
       {/* 开场只在加载完成之后挂载：它的逐字解码动画必须从头开始，而不是被加载页挡掉一半 */}

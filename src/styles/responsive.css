@@ -1,0 +1,1040 @@
+/* ============================================================================
+   V1 · 移动端 / 平板适配层（方案书 §02 – §40）
+
+   这一层**只**挂在设备的两个属性上：
+
+     .atlas[data-device='tablet']   iPad
+     .atlas[data-device='mobile']   手机
+
+   桌面上这两个属性永远是 data-device="desktop"，所以下面每一行规则
+   在桌面端都不会被匹配到 —— 桌面布局、尺寸、动效、交互保持原样。
+
+   五种布局模式（写在 .atlas[data-layout] 上）：
+     desktop            原样
+     tablet-landscape   左景右档，面板 34~40%
+     tablet-portrait    上下分区（Scene 58% / Detail 42%）
+     mobile-portrait    全屏场景 + Bottom Sheet
+     mobile-landscape   左景右档（Scene 68% / Detail 32%）
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   0. 令牌：安全区、动效档位、抽屉高度
+   --------------------------------------------------------------------------- */
+
+/**
+ * V1.1 §28：浮层打开时的滚动锁。
+ * 只锁 overflow，**不能**给 body 加 touch-action —— touch-action 是沿祖先
+ * 取交集的，那样会把抽屉内部的滚动一起关掉。
+ */
+html[data-sheet-open='yes'] body {
+  overflow: hidden;
+}
+
+/* V1.1 §27：软键盘弹出时，全屏浮层按可视高度收敛，输入框不会被顶到键盘下面 */
+html[data-keyboard='open'] .atlas[data-device='mobile'] .searchpanel {
+  height: var(--vv-height, 100%);
+  top: var(--vv-offset-top, 0px);
+  bottom: auto;
+}
+
+.atlas[data-device='tablet'],
+.atlas[data-device='mobile'] {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  /* §39 mobile motion tokens */
+  --m-micro: 120ms;
+  --m-ui: 220ms;
+  --m-panel: 320ms;
+  --m-sheet: 420ms;
+  --m-focus: 700ms;
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* 手机底部动作条高度（时间轴要停在它上方） */
+  --dock-h: 52px;
+}
+
+/* ---------------------------------------------------------------------------
+   1. touch-action（§10）
+
+   铁律：用户滚动文字，太阳系绝不能跟着旋转。
+   --------------------------------------------------------------------------- */
+
+.atlas[data-device='tablet'] .canvas-layer canvas,
+.atlas[data-device='mobile'] .canvas-layer canvas {
+  touch-action: none;
+}
+
+.atlas[data-device='tablet'] .archive,
+.atlas[data-device='tablet'] .catalogpanel,
+.atlas[data-device='mobile'] .archive,
+.atlas[data-device='mobile'] .catalogpanel {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.atlas[data-device='tablet'] .timeline,
+.atlas[data-device='mobile'] .timeline {
+  touch-action: pan-x;
+}
+
+/* 时间轴**轨道**是真正的拖拽面：横向手势必须留给它自己，
+   否则浏览器会把它当成横向滚动而发 pointercancel，拖动直接丢失。 */
+.atlas[data-device='tablet'] .timeline__track,
+.atlas[data-device='mobile'] .timeline__track {
+  touch-action: none;
+}
+
+/* 抽屉的顶部标题条是"拖拽把手"：这里必须独占手势，否则会滚正文 */
+.atlas[data-device='tablet'] .archive__top,
+.atlas[data-device='mobile'] .archive__top {
+  touch-action: none;
+}
+
+/* 触摸设备上不再显示桌面那枚自定义光标 */
+.atlas[data-device='tablet'] .atlas-cursor,
+.atlas[data-device='mobile'] .atlas-cursor {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   2. 排版（§29）
+   --------------------------------------------------------------------------- */
+
+.atlas[data-device='tablet'],
+.atlas[data-device='mobile'] {
+  --body-mobile: clamp(14px, 1.6vw, 16px);
+  --meta-mobile: clamp(10px, 1.2vw, 12px);
+}
+
+.atlas[data-device='mobile'] .archive__body,
+.atlas[data-device='mobile'] .archive__cn {
+  font-size: 14px;
+  line-height: 1.95;
+}
+
+.atlas[data-device='mobile'] .archive__row dd,
+.atlas[data-device='mobile'] .archive__listitem {
+  font-size: 12px;
+}
+
+.atlas[data-device='mobile'] .archive__name {
+  font-size: clamp(26px, 9vw, 40px);
+}
+
+.atlas[data-device='tablet'] .archive__body,
+.atlas[data-device='tablet'] .archive__cn {
+  font-size: 13.5px;
+}
+
+/* ---------------------------------------------------------------------------
+   3. iPad 横屏（§04 / §18）：保留左景右档，面板 34~40%
+   --------------------------------------------------------------------------- */
+
+.atlas[data-layout='tablet-landscape'] {
+  --panel-w: clamp(320px, 37vw, 460px);
+}
+
+/* © 桌面那套 @media (max-width: 1240px) 给面板写死了 min(520px, 46vw)，
+   变量在这里盖不过它——所以 iPad 横屏的面板宽度必须显式声明（§04：34~40%）。 */
+.atlas[data-layout='tablet-landscape'] .archive,
+.atlas[data-layout='tablet-landscape'] .catalogpanel {
+  width: clamp(340px, 38vw, 470px);
+}
+
+.atlas[data-device='tablet'] .topbar {
+  padding: calc(14px + var(--safe-top)) calc(20px + var(--safe-right)) 0
+    calc(20px + var(--safe-left));
+}
+
+/* 三栏 grid 显式排两行：第一行 主页 / 工具，第二行整行给场景控制。
+   所有按钮 nowrap + 不收缩 —— 禁止换行挤压（§18）。 */
+.atlas[data-device='tablet'] .topbar__row {
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  row-gap: 10px;
+  min-height: 0;
+}
+
+.atlas[data-device='tablet'] .topbar__left {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.atlas[data-device='tablet'] .topbar__utility {
+  grid-row: 1;
+  grid-column: 2;
+  justify-self: end;
+  flex-wrap: nowrap;
+}
+
+.atlas[data-device='tablet'] .topbar__scene {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  justify-self: center;
+  flex-wrap: nowrap;
+  gap: 10px;
+  padding: 6px 14px;
+}
+
+.atlas[data-device='tablet'] .navbtn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.atlas[data-device='tablet'] .masthead {
+  top: calc(96px + var(--safe-top));
+  left: calc(24px + var(--safe-left));
+}
+
+.atlas[data-device='tablet'][data-back='yes'] .masthead {
+  top: calc(130px + var(--safe-top));
+}
+
+.atlas[data-device='tablet'] .backbtn {
+  top: calc(86px + var(--safe-top));
+  left: calc(24px + var(--safe-left));
+}
+
+.atlas[data-device='tablet'] .timeline {
+  left: calc(24px + var(--safe-left));
+  right: calc(24px + var(--safe-right));
+  bottom: calc(18px + var(--safe-bottom));
+}
+
+.atlas[data-device='tablet'] .quote-rail {
+  left: calc(24px + var(--safe-left));
+}
+
+/* 面板打开时，时间轴让位给右档（导航栏依然不动，v7 §21） */
+.atlas[data-device='tablet'][data-panel='open'] .timeline {
+  right: calc(var(--panel-w) + 24px);
+}
+
+.atlas[data-device='tablet'][data-panel='open'] .telemetry,
+.atlas[data-device='tablet'][data-panel='open'] .creatorpanel {
+  right: calc(var(--panel-w) + 20px);
+}
+
+/* ---------------------------------------------------------------------------
+   4. iPad 竖屏（§05）：Scene 58% / Detail 42%，详情内部自己滚动
+   --------------------------------------------------------------------------- */
+
+.atlas[data-layout='tablet-portrait'] {
+  --panel-w: 100%;
+  --detail-h: 42%;
+}
+
+/**
+ * 没有打开任何档案时，下半屏不必空着 42%：
+ * 场景放到 76%，只在下方留一条 24% 的"接线区"（时间轴停在这条线的上方）。
+ * 一旦进了行星 / 卫星 / 档案，立刻回到文档写明的 58 / 42 分区。
+ */
+.atlas[data-layout='tablet-portrait'][data-panel='closed'] {
+  --detail-h: 24%;
+}
+
+/* 场景真的变成"上半屏"：画布、标签层、全息层一起收，
+   于是相机取景、标签投影、全息标注三者仍然共用同一个坐标系。 */
+.atlas[data-layout='tablet-portrait'] .canvas-layer,
+.atlas[data-layout='tablet-portrait'] .label-layer,
+.atlas[data-layout='tablet-portrait'] .holo-layer {
+  bottom: var(--detail-h);
+}
+
+.atlas[data-layout='tablet-portrait'] .archive,
+.atlas[data-layout='tablet-portrait'] .catalogpanel {
+  top: auto;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: var(--detail-h);
+  max-height: none;
+  border-left: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 26px calc(26px + var(--safe-right)) 30px calc(26px + var(--safe-left));
+  animation: sheet-up var(--m-panel) var(--ease-spring) both;
+}
+
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.atlas[data-device='tablet'] .topbar__row {
+  min-height: 0;
+}
+
+.atlas[data-layout='tablet-portrait'] .timeline {
+  left: calc(20px + var(--safe-left));
+  right: calc(20px + var(--safe-right));
+  bottom: calc(var(--detail-h) + 14px);
+}
+
+.atlas[data-layout='tablet-portrait'][data-panel='open'] .timeline {
+  right: calc(20px + var(--safe-right));
+}
+
+/**
+ * 竖屏的时间轴收成细线（§05 / §21）：场景只有 58% 高，
+ * 一条 170px 的完整时间轴会吃掉场景的下三分之一。
+ * 只留年份 + 回放 + 轨道本身，统计与事件注解交给聚焦状态的档案。
+ */
+.atlas[data-layout='tablet-portrait'] .timeline__stat,
+.atlas[data-layout='tablet-portrait'] .timeline__annotation,
+.atlas[data-layout='tablet-portrait'] .timeline__hint {
+  display: none;
+}
+
+.atlas[data-layout='tablet-portrait'] .timeline {
+  padding-top: 10px;
+}
+
+.atlas[data-layout='tablet-portrait'] .timeline__head {
+  margin-bottom: 8px;
+}
+
+/* ---------------------------------------------------------------------------
+   5. 手机（§06 / §07 / §16 / §17）
+   --------------------------------------------------------------------------- */
+
+.atlas[data-device='mobile'] {
+  --panel-w: 100%;
+  --dock-h: 50px;
+}
+
+/* 桌面那一行导航在手机上整行隐藏；搜索 / 指南是它的兄弟节点，仍然可用 */
+.atlas[data-device='mobile'] .topbar {
+  padding: 0;
+  /**
+   * 手机上 .topbar 里只剩搜索 / 指南这两个全屏浮层。
+   * 它自己带着 z-index: 70 的堆叠上下文，会把子元素的 95 压到
+   * 底部动作条（80）之下——右上角的 ✕ 就被"菜单 EN"盖住了。
+   * 这里把整层提到动作条之上，✕ 才点得到。
+   */
+  z-index: 100;
+}
+
+.atlas[data-device='mobile'] .topbar__row {
+  display: none;
+}
+
+/* ---- 5.1 顶部：HOME / MENU / LANGUAGE（§16） ---- */
+
+.mobilebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: calc(10px + var(--safe-top)) calc(14px + var(--safe-right)) 10px
+    calc(14px + var(--safe-left));
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(5, 5, 5, 0.82), rgba(5, 5, 5, 0));
+}
+
+.mobilebar__right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mobilebar__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 2px;
+  background: transparent;
+  border: 0;
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  pointer-events: auto;
+  transition: color var(--m-ui) var(--ease-out);
+}
+
+.mobilebar__btn:active,
+.mobilebar__btn[aria-expanded='true'] {
+  color: var(--ink);
+}
+
+.mobilebar__btn--lang {
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+}
+
+/* ---- 5.2 底部：VIEW / SEARCH（§16） ---- */
+
+.mobiledock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 80;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  min-height: calc(var(--dock-h) + var(--safe-bottom));
+  padding: 0 calc(10px + var(--safe-right)) var(--safe-bottom) calc(10px + var(--safe-left));
+  background: linear-gradient(0deg, rgba(5, 5, 5, 0.94), rgba(5, 5, 5, 0.36));
+  border-top: 1px solid rgba(52, 52, 47, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+.mobiledock__btn {
+  appearance: none;
+  height: 100%;
+  min-height: var(--dock-h);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid rgba(52, 52, 47, 0.55);
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.mobiledock__btn:last-child {
+  border-right: 0;
+}
+
+.mobiledock__btn:active,
+.mobiledock__btn[aria-expanded='true'] {
+  color: var(--node);
+}
+
+/* ---- 5.3 手机上收起来的那几块桌面 UI ---- */
+
+.atlas[data-device='mobile'] .telemetry,
+.atlas[data-device='mobile'] .quote-rail,
+.atlas[data-device='mobile'] .unfold,
+.atlas[data-device='mobile'] .stats,
+.atlas[data-device='mobile'] .hint {
+  display: none;
+}
+
+.atlas[data-device='mobile'] .masthead {
+  top: calc(66px + var(--safe-top));
+  left: calc(16px + var(--safe-left));
+  max-width: 62vw;
+}
+
+.atlas[data-device='mobile'] .masthead h1 {
+  font-size: 17px;
+  letter-spacing: 0.2em;
+}
+
+.atlas[data-device='mobile'] .masthead p,
+.atlas[data-device='mobile'] .masthead__count {
+  display: none;
+}
+
+.atlas[data-device='mobile'] .masthead i {
+  width: 44px;
+  margin: 8px 0;
+}
+
+.atlas[data-device='mobile'][data-back='yes'] .masthead {
+  display: none;
+}
+
+.atlas[data-device='mobile'] .backbtn {
+  top: calc(58px + var(--safe-top));
+  left: calc(14px + var(--safe-left));
+  font-size: 10px;
+}
+
+/* ---- 5.4 时间轴：两态抽屉（§21 / V1.1 §2 / §3） ----
+
+   和其他抽屉同一套几何：面板高度固定为 expanded（--tl-h，由 Timeline.tsx 写），
+   位置靠 `--tl-y` 下沉。collapsed 只露 72px + 安全区，expanded = clamp(0.46vh, 320, 520)。
+   竖向拖动由 TimelineGesture 接管，横向仍然拖年份。 */
+
+.atlas[data-device='mobile'] .timeline {
+  left: 0;
+  right: 0;
+  bottom: calc(var(--dock-h) + var(--safe-bottom));
+  height: var(--tl-h, 380px);
+  transform: translate3d(0, var(--tl-y, 0px), 0);
+  will-change: transform;
+  padding: 0 calc(14px + var(--safe-right)) calc(12px + var(--safe-bottom))
+    calc(14px + var(--safe-left));
+  background: rgba(6, 6, 6, 0.94);
+  border-top: 1px solid rgba(52, 52, 47, 0.75);
+  border-radius: 12px 12px 0 0;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  z-index: 55;
+}
+
+.atlas[data-device='mobile'] .timeline__grab {
+  display: grid;
+  place-items: center;
+  padding: 7px 0 3px;
+}
+
+.atlas[data-device='mobile'] .timeline__grab button {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 18px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  /* 手指必须能从这一条开始竖向拖动抽屉 */
+  touch-action: none;
+}
+
+.atlas[data-device='mobile'] .timeline__grab i {
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(125, 122, 112, 0.55);
+}
+
+.atlas[data-device='mobile'] .timeline__stat,
+.atlas[data-device='mobile'] .timeline__annotation,
+.atlas[data-device='mobile'] .timeline__hint {
+  display: none;
+}
+
+.atlas[data-device='mobile'] .timeline__head {
+  margin-bottom: 4px;
+}
+
+.atlas[data-device='mobile'] .timeline__year {
+  font-size: 15px;
+  letter-spacing: 0.1em;
+}
+
+.atlas[data-device='mobile'] .timeline__play {
+  margin-left: auto;
+  font-size: 10px;
+}
+
+/* 展开后才露出来的事件清单 */
+.atlas[data-device='mobile'] .timeline__drawer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(52, 52, 47, 0.6);
+}
+
+.atlas[data-device='mobile'] .timeline__drawer-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.atlas[data-device='mobile'] .timeline__drawer-list {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: calc(var(--tl-h, 380px) - 150px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.atlas[data-device='mobile'] .timeline__drawer-list button {
+  appearance: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid rgba(52, 52, 47, 0.45);
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-align: left;
+}
+
+.atlas[data-device='mobile'] .timeline__drawer-list b {
+  flex: 0 0 auto;
+  font-weight: 400;
+  color: var(--node);
+}
+
+.atlas[data-device='mobile'] .timeline__drawer-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- 5.5 详情 Bottom Sheet（§06 / §26 / §38 / V1.1 §7–§10） ----
+
+   V1.1：几何位置不再改 height，而是"按 expanded 高度布局 + transform 下沉"。
+     --sheet-expanded-h  由 MobileSheet.tsx 按 visualViewport 写入（px）
+     --sheet-y           连续位置，由手指 / 弹簧逐帧写入（px），0 = 完全展开
+   三档吸附点是视口高度的 0.18 / 0.48 / 0.88，但用户停在任意中间位置都可以。 */
+
+.atlas[data-device='mobile'] .archive,
+.atlas[data-device='mobile'] .catalogpanel {
+  position: fixed;
+  top: auto;
+  left: 0;
+  right: 0;
+  /**
+   * 抽屉停在底部动作条**上方**：VIEW / SEARCH 永远可点得到，
+   * 也不会出现"抽屉最后两行被动作条盖住"。
+   */
+  bottom: calc(var(--dock-h) + var(--safe-bottom));
+  width: auto;
+  max-height: none;
+  height: var(--sheet-expanded-h, 88vh);
+  transform: translate3d(0, var(--sheet-y, 0px), 0);
+  will-change: transform;
+  z-index: 60;
+  padding: 26px calc(18px + var(--safe-right)) calc(26px + var(--safe-bottom))
+    calc(18px + var(--safe-left));
+  border-left: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 14px 14px 0 0;
+  background: rgba(6, 6, 6, 0.97);
+  box-shadow: 0 -30px 60px rgba(0, 0, 0, 0.62);
+  /**
+   * 入场动画改由 DrawerMotion 的弹簧驱动（可被手指立刻打断）。
+   * CSS keyframes 的 fill:both 会永久压住 inline transform，
+   * 那样拖动会直接失效——所以这里必须 animation: none。
+   */
+  animation: none;
+  transition: none;
+}
+
+.atlas[data-device='mobile'] .archive[data-dragging='yes'],
+.atlas[data-device='mobile'] .catalogpanel[data-dragging='yes'] {
+  transition: none;
+}
+
+/* 抽屉把手（只是视觉提示，真正接管手势的是 .archive__top） */
+.atlas[data-device='mobile'] .archive::before,
+.atlas[data-device='mobile'] .catalogpanel::before {
+  content: '';
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 44px;
+  height: 3px;
+  margin-left: -22px;
+  border-radius: 2px;
+  background: rgba(125, 122, 112, 0.55);
+  pointer-events: none;
+}
+
+.atlas[data-device='mobile'] .archive__top {
+  cursor: grab;
+}
+
+/* ---- 5.6 手机横屏（§07）：Scene 68% / Detail 32% ---- */
+
+.atlas[data-layout='mobile-landscape'] {
+  --detail-w: 32%;
+}
+
+/* 只有真的打开了档案，场景才让出右侧那 32%；没开面板时全宽给宇宙 */
+.atlas[data-layout='mobile-landscape'][data-panel='open'] .canvas-layer,
+.atlas[data-layout='mobile-landscape'][data-panel='open'] .label-layer,
+.atlas[data-layout='mobile-landscape'][data-panel='open'] .holo-layer {
+  right: var(--detail-w);
+}
+
+.atlas[data-layout='mobile-landscape'] .archive,
+.atlas[data-layout='mobile-landscape'] .catalogpanel {
+  top: 0;
+  bottom: 0;
+  left: auto;
+  right: 0;
+  width: var(--detail-w);
+  height: auto;
+  border-radius: 0;
+  border-left: 1px solid var(--line);
+  border-top: 0;
+  padding-top: calc(18px + var(--safe-top));
+  animation: sheet-side var(--m-panel) var(--ease-spring) both;
+}
+
+@keyframes sheet-side {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.atlas[data-layout='mobile-landscape'] .archive::before,
+.atlas[data-layout='mobile-landscape'] .catalogpanel::before {
+  display: none;
+}
+
+/* 横屏打开档案时，顶部条 / 动作条 / 时间轴都只铺在场景那一侧 */
+.atlas[data-layout='mobile-landscape'][data-panel='open'] .mobilebar,
+.atlas[data-layout='mobile-landscape'][data-panel='open'] .mobiledock,
+.atlas[data-layout='mobile-landscape'][data-panel='open'] .timeline {
+  right: var(--detail-w);
+}
+
+/* 横屏时左右两侧要给刘海 / Home Indicator 让位 */
+.atlas[data-device='mobile'] .mobiledock {
+  padding-left: max(10px, var(--safe-left));
+  padding-right: max(10px, var(--safe-right));
+}
+
+/* ---- 5.7 手机菜单抽屉（§17） ---- */
+
+.mobilemenu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  max-height: 76vh;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  padding: 0 calc(16px + var(--safe-right)) calc(20px + var(--safe-bottom))
+    calc(16px + var(--safe-left));
+  background: rgba(6, 6, 6, 0.98);
+  border-top: 1px solid var(--line);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -30px 60px rgba(0, 0, 0, 0.66);
+  animation: sheet-up var(--m-sheet) var(--ease-spring) both;
+  will-change: transform;
+}
+
+.mobilemenu__grab {
+  padding: 9px 0 5px;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+}
+
+.mobilemenu__grab i {
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(125, 122, 112, 0.55);
+}
+
+.mobilemenu__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(52, 52, 47, 0.7);
+}
+
+.mobilemenu__title {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.mobilemenu__close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.mobilemenu__scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding-top: 6px;
+}
+
+.mobilemenu__group {
+  padding-top: 14px;
+}
+
+.mobilemenu__group h4 {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.mobilemenu__item {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 11px 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid rgba(52, 52, 47, 0.5);
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-align: left;
+}
+
+.mobilemenu__item small {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.mobilemenu__item[aria-pressed='true'] {
+  color: var(--node);
+}
+
+.mobilemenu__item--plain {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobilemenu__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding-bottom: 4px;
+}
+
+.mobilemenu__chip {
+  appearance: none;
+  padding: 7px 11px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.mobilemenu__chip[aria-pressed='true'] {
+  border-color: var(--line-bright);
+  color: var(--ink);
+}
+
+.mobilemenu__check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px solid rgba(52, 52, 47, 0.5);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+}
+
+/* ---- 5.8 手机搜索：全屏 Overlay（§19） ---- */
+
+.atlas[data-device='mobile'] .searchpanel {
+  position: fixed;
+  inset: 0;
+  width: auto;
+  z-index: 95;
+  padding: calc(16px + var(--safe-top)) calc(18px + var(--safe-right))
+    calc(24px + var(--safe-bottom)) calc(18px + var(--safe-left));
+  background: rgba(5, 5, 5, 0.97);
+  backdrop-filter: blur(12px);
+  border: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: sheet-up var(--m-ui) var(--ease-out) both;
+}
+
+.atlas[data-device='mobile'] .searchpanel input {
+  /* iOS 上小于 16px 的输入框会被自动放大整个页面 */
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  padding: 10px 0 12px;
+}
+
+.atlas[data-device='mobile'] .searchpanel__item {
+  padding: 13px 0;
+  font-size: 12px;
+}
+
+.atlas[data-device='mobile'] .searchpanel__close {
+  position: absolute;
+  top: calc(12px + var(--safe-top));
+  right: calc(14px + var(--safe-right));
+  appearance: none;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 16px;
+}
+
+/* 手机上搜索面板的输入框要给右上角的 × 让位 */
+.atlas[data-device='mobile'] .searchpanel input {
+  padding-right: 44px;
+}
+
+/* ---- 5.9 指南 / 音乐厅 / 作者面板：改成从底部升起的浮层 ---- */
+
+/* 抽屉里的滚动条：桌面那套细线样式在移动端是亮白的，很扎眼 */
+.atlas[data-device='tablet'] .archive::-webkit-scrollbar,
+.atlas[data-device='mobile'] .archive::-webkit-scrollbar,
+.atlas[data-device='mobile'] .catalogpanel::-webkit-scrollbar,
+.atlas[data-device='mobile'] .mobilemenu__scroll::-webkit-scrollbar {
+  width: 3px;
+}
+
+.atlas[data-device='tablet'] .archive::-webkit-scrollbar-thumb,
+.atlas[data-device='mobile'] .archive::-webkit-scrollbar-thumb,
+.atlas[data-device='mobile'] .catalogpanel::-webkit-scrollbar-thumb,
+.atlas[data-device='mobile'] .mobilemenu__scroll::-webkit-scrollbar-thumb {
+  background: var(--line);
+}
+
+.atlas[data-device='mobile'] .guide {
+  position: fixed;
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 92;
+  width: auto;
+  max-height: 78vh;
+  overflow-y: auto;
+  padding: 22px calc(18px + var(--safe-right)) calc(24px + var(--safe-bottom))
+    calc(18px + var(--safe-left));
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 14px 14px 0 0;
+  animation: sheet-up var(--m-sheet) var(--ease-spring) both;
+}
+
+.atlas[data-device='mobile'] .hall {
+  padding: calc(22px + var(--safe-top)) calc(16px + var(--safe-right))
+    calc(20px + var(--safe-bottom)) calc(16px + var(--safe-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.atlas[data-device='mobile'] .creatorpanel {
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  max-height: 80vh;
+  overflow-y: auto;
+  border-radius: 14px 14px 0 0;
+  padding-bottom: calc(20px + var(--safe-bottom));
+  animation: sheet-up var(--m-sheet) var(--ease-spring) both;
+}
+
+.atlas[data-device='tablet'] .guide {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.atlas[data-device='tablet'] .creatorpanel {
+  width: min(340px, 44vw);
+  max-height: 74vh;
+  overflow-y: auto;
+}
+
+/* iPad 竖屏下这些面板也走底部 */
+.atlas[data-layout='tablet-portrait'] .hall {
+  padding: calc(26px + var(--safe-top)) calc(24px + var(--safe-right))
+    calc(24px + var(--safe-bottom)) calc(24px + var(--safe-left));
+  overflow-y: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   6. 首页（§36）：圆形启动 UI 与文案在手机上收小
+   --------------------------------------------------------------------------- */
+
+/* 圆盘在桌面上是 min(74vh, 620px)：手机上那个宽度会整个溢出画面（§36 要求 45~60vw） */
+.atlas[data-device='mobile'] .boot__disc {
+  width: min(64vw, 64vh);
+  height: min(64vw, 64vh);
+}
+
+.atlas[data-device='mobile'] .boot__stages {
+  left: calc(18px + var(--safe-left));
+  right: calc(18px + var(--safe-right));
+  bottom: calc(96px + var(--safe-bottom));
+  min-width: 0;
+}
+
+.atlas[data-device='mobile'] .boot__readout {
+  right: calc(18px + var(--safe-right));
+  bottom: calc(28px + var(--safe-bottom));
+}
+
+.atlas[data-device='mobile'] .intro__inner {
+  width: auto;
+  max-width: 88vw;
+  padding: 0 calc(var(--safe-left)) 0 calc(var(--safe-right));
+}
+
+.atlas[data-device='mobile'] .intro__cta {
+  /* 手指的点击目标至少要 44px 高 */
+  padding: 15px 26px;
+}
+
+.atlas[data-device='mobile'] .intro__cn {
+  font-size: 14px;
+}
+
+.atlas[data-device='mobile'] .intro__sub {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+}
+
+/* ---------------------------------------------------------------------------
+   7. 降级：低画质偏好时不再播放长动画（§39 的底线）
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas[data-device='tablet'] .archive,
+  .atlas[data-device='mobile'] .archive,
+  .atlas[data-device='mobile'] .mobilemenu,
+  .atlas[data-device='mobile'] .searchpanel {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}

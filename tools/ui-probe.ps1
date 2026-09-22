@@ -32,11 +32,23 @@ param(
   [int]$Width = 1600,
   [int]$Height = 900,
   [int]$Frames = 45,
+  # 截图脚本（shot.ps1）用的是旧 headless，两者视口与 GPU 行为不完全一致。
+  # 需要"和截图同一个环境"时用 -Headless old。
+  [ValidateSet('new', 'old')][string]$Headless = 'new',
   [string]$ShotName = ''
   ,
   # 在拖动/滚轮之后求值的表达式（用来验证"手势之后才发生的事"，比如音频自动播放）
   [string]$ExprLast = ''
   ,
+  # 注入真实手指轨迹（CDP Input.dispatchTouchEvent），用 ; 分隔每一帧。
+  #   单指："x,y;x,y;x,y"
+  #   双指："x1,y1,x2,y2;x1,y1,x2,y2;..."（捏合 / 双指平移）
+  # 用 ; 分隔（不用数组参数：外部 PowerShell 会把逗号数组拆成多个参数）
+  [string]$TouchPath = '',
+  # 中途改变视口（模拟旋屏 / 地址栏变化）："w,h"
+  [string]$Resize = '',
+  # 敲一下屏幕（走 Chrome 的手势识别）："x,y" —— 验证 tap 选中/聚焦
+  [string]$Tap = '',
   # 抓运行时异常：注入采集器 → 重新加载 → 读出前若干条
   [switch]$ErrProbe = $false
 )
@@ -59,7 +71,7 @@ $server = Start-Process -FilePath 'python' -ArgumentList '-m', 'http.server', $P
   -WorkingDirectory $dist -WindowStyle Hidden -PassThru
 $profile = Join-Path $env:TEMP ('atlas-probe-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
 $chrome = Start-Process -FilePath $browser -ArgumentList @(
-  '--headless=new', '--no-sandbox', '--disable-gpu-sandbox', '--use-gl=angle',
+  "--headless=$Headless", '--no-sandbox', '--disable-gpu-sandbox', '--use-gl=angle',
   '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage',
   '--no-first-run', '--log-level=3', "--user-data-dir=$profile",
   "--window-size=$Width,$Height", "--remote-debugging-port=$DebugPort", $fullUrl
@@ -240,6 +252,81 @@ JSON.stringify($selectorsJson.map(function (sel) {
     }
     Wait-Frames -Count 30
     Write-Host ("camera after wheel : {0}" -f (Get-Camera)) -ForegroundColor Yellow
+  }
+
+  $touchPoints = @()
+  if ($TouchPath) {
+    $touchPoints = @($TouchPath.Split(';') | Where-Object { $_ -match ',' })
+  }
+  if ($touchPoints.Count -ge 2) {
+    # 必须显式打开触摸仿真，否则 CDP 的 dispatchTouchEvent 会被 Chrome
+    # 当成鼠标事件吞掉（表现为"拖动能动、轻点完全没反应"）。
+    Send-Cdp -Method 'Emulation.setTouchEmulationEnabled' -Params @{
+      enabled = $true; maxTouchPoints = 2
+    } | Out-Null
+    # 真实手指轨迹：touchStart → 逐帧 touchMove → touchEnd。
+    # 每帧 2 个数字 = 单指；4 个数字 = 双指（捏合 / 双指平移）。
+    function ConvertTo-TouchPoints([string]$frame) {
+      $values = @($frame.Split(',') | ForEach-Object { [int]$_ })
+      if ($values.Count -ge 4) {
+        # 前置逗号：PowerShell 会把"只有一个元素的数组"摊平，必须显式包一层
+        return ,@(
+          @{ x = $values[0]; y = $values[1]; id = 1 },
+          @{ x = $values[2]; y = $values[3]; id = 2 }
+        )
+      }
+      return ,@(@{ x = $values[0]; y = $values[1]; id = 1 })
+    }
+
+    $startPoints = @(ConvertTo-TouchPoints $touchPoints[0])
+    Write-Host ("touch start ({0} finger) -> {1} frames" -f $startPoints.Count, $touchPoints.Count) -ForegroundColor DarkGray
+    Write-Host ("  points: " + ($startPoints | ForEach-Object { "($($_.x),$($_.y))" }) -join ' ') -ForegroundColor DarkGray
+    Send-Cdp -Method 'Input.dispatchTouchEvent' -Params @{
+      type = 'touchStart'; touchPoints = $startPoints
+    } | Out-Null
+    Start-Sleep -Milliseconds 30
+    for ($i = 1; $i -lt $touchPoints.Count; $i++) {
+      $framePoints = @(ConvertTo-TouchPoints $touchPoints[$i])
+      Send-Cdp -Method 'Input.dispatchTouchEvent' -Params @{
+        type = 'touchMove'; touchPoints = $framePoints
+      } | Out-Null
+      Start-Sleep -Milliseconds 22
+    }
+    Send-Cdp -Method 'Input.dispatchTouchEvent' -Params @{ type = 'touchEnd'; touchPoints = @() } | Out-Null
+    Wait-Frames -Count 24
+    Write-Host ("touch end   camera: {0}" -f (Get-Camera)) -ForegroundColor Yellow
+  }
+
+  if ($Tap) {
+    # 走 Chrome 自己的手势识别：比手搓 touchStart/End 更接近真机的一次轻点
+    $tapParts = $Tap.Split(',')
+    $tapX = [int]$tapParts[0]
+    $tapY = [int]$tapParts[1]
+    Send-Cdp -Method 'Emulation.setTouchEmulationEnabled' -Params @{
+      enabled = $true; maxTouchPoints = 2
+    } | Out-Null
+    Write-Host ("tap ({0},{1})" -f $tapX, $tapY) -ForegroundColor DarkGray
+    Send-Cdp -Method 'Input.synthesizeTapGesture' -Params @{
+      x = $tapX; y = $tapY; duration = 60; tapCount = 1
+    } | Out-Null
+    Wait-Frames -Count 24
+    Write-Host ("tap result  camera: {0}" -f (Get-Camera)) -ForegroundColor Yellow
+  }
+
+  if ($Resize) {
+    # 模拟旋屏：只改视口指标，页面不重新加载。
+    # 用来验证 §24 —— focus 必须还在，Camera 不允许重建或复位。
+    $parts = $Resize.Split(',')
+    $rw = [int]$parts[0]
+    $rh = [int]$parts[1]
+    $beforeResize = Eval -Expression 'JSON.stringify({layout: document.querySelector(".atlas").dataset.layout, focus: window.__atlasStore.getState().focusKind + ":" + (window.__atlasStore.getState().focusId || "-"), cam: (function(){var c=window.__atlasCamera(); return {h: Math.round(c.height), x: c.x, z: c.z}})()})'
+    Write-Host ("resize before  {0}" -f $beforeResize) -ForegroundColor DarkGray
+    Send-Cdp -Method 'Emulation.setDeviceMetricsOverride' -Params @{
+      width = $rw; height = $rh; deviceScaleFactor = 1; mobile = $true
+    } | Out-Null
+    Wait-Frames -Count 40
+    $afterResize = Eval -Expression 'JSON.stringify({layout: document.querySelector(".atlas").dataset.layout, focus: window.__atlasStore.getState().focusKind + ":" + (window.__atlasStore.getState().focusId || "-"), cam: (function(){var c=window.__atlasCamera(); return {h: Math.round(c.height), x: c.x, z: c.z}})()})'
+    Write-Host ("resize after   {0}" -f $afterResize) -ForegroundColor Yellow
   }
 
   if ($ExprLast) {

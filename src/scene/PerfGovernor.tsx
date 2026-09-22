@@ -1,6 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { useThree } from '@react-three/fiber'
 import { PERF_MAX_DPR, PERF_MIN_SCALE, perfState } from '../utils/perf'
+import { getLayoutMode } from '../responsive/device'
+import { maxDprFor } from '../responsive/renderProfile'
+import { adaptiveQuality } from '../performance/AdaptiveQualityManager'
 
 /**
  * 自适应渲染质量（v9.3）。
@@ -18,7 +21,14 @@ export function PerfGovernor() {
   const applied = useRef(0)
 
   useEffect(() => {
-    const base = Math.min(window.devicePixelRatio || 1, PERF_MAX_DPR)
+    /**
+     * V1.1 §11：移动端 / 平板的画质由 AdaptiveQualityManager 接管
+     * （它管的不只是 DPR）。两者同时写 DPR 会互相打架，所以这里让位。
+     * 桌面保持 V1 原样——这一段判定在桌面上永远为 false。
+     */
+    if (adaptiveQuality.active) return
+    // V1 §32：基准上限跟着布局模式走（桌面仍是原来的 PERF_MAX_DPR = 1.5）
+    const base = Math.min(window.devicePixelRatio || 1, maxDprFor(getLayoutMode()))
     let raf = 0
     let frames = 0
     let windowStart = performance.now()
