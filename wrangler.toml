@@ -1,0 +1,5 @@
+# Cloudflare Pages 部署配置（静态站点，无服务端）
+#   npx wrangler@latest pages deploy dist --project-name=solar-system-atlas
+name = "solar-system-atlas"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-21"

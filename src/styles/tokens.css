@@ -1,0 +1,111 @@
+/* 设计令牌：颜色、层级、尺寸、动效时长。所有组件只允许引用变量，不写死数值。 */
+
+@font-face {
+  font-family: 'PlexMono';
+  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PlexMono';
+  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AtlasSans';
+  src: url('/fonts/inter-300.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'AtlasSans';
+  src: url('/fonts/inter-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /**
+   * v7 §19：UI 尺寸令牌。
+   * 顶部导航、菜单、面板一律引用这些变量——禁止每个组件自己写
+   * font-size: 13px / padding: 12px / margin: 17px，那正是 UI 越改越乱的原因。
+   */
+  --ui-topbar-height: 40px;
+  --ui-gap: 14px;
+  --ui-gap-tight: 8px;
+  --ui-radius: 2px;
+  --ui-border: rgba(52, 52, 47, 0.8);
+  --ui-menu-width: 236px;
+  --ui-menu-width-wide: 288px;
+  /* motion grammar：五档时长，各有各的用途 */
+  --m-micro: 120ms;
+  --m-ui: 220ms;
+  --m-panel: 320ms;
+  --m-focus: 700ms;
+  --m-scene: 1400ms;
+
+  /* color */
+  --bg: #050505;
+  --bg-soft: #0b0b0a;
+  --ink: #e7e1d5;
+  --ink-dim: #b9b2a4;
+  --ink-muted: #7e7a72;
+  --ink-faint: #59554e;
+  --line: #34342f;
+  --line-bright: #7d7a70;
+  --line-measure: #6b6455;
+  --node: #c58a55;
+  --accent-cyan: #74b7c2;
+  --accent-yellow: #b8a955;
+  --accent-red: #9a5c4c;
+
+  /* panel */
+  /* v9 §9：详情面板至少占视口 1/3，桌面端取 36vw（420–620px 之间） */
+  --panel-w: clamp(420px, 36vw, 620px);
+  --panel-bg: rgba(6, 6, 6, 0.94);
+  --panel-blur: 14px;
+
+  /* type */
+  --mono: 'PlexMono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --sans: 'AtlasSans', 'Inter', -apple-system, 'Segoe UI', 'Noto Sans SC', 'PingFang SC',
+    'Microsoft YaHei', sans-serif;
+
+  /* motion */
+  --t-hover: 180ms;
+  --t-label: 220ms;
+  --t-filter: 420ms;
+  --t-panel: 640ms;
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-inout: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  overscroll-behavior: none;
+}
+
+#root {
+  position: fixed;
+  inset: 0;
+}
+
+::selection {
+  background: rgba(197, 138, 85, 0.28);
+}

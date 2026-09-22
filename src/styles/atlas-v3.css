@@ -1,0 +1,520 @@
+/* ══════════════════════════════════════════════════════════════
+   v3：非阻塞开场 / 字符解码 / 层级返回 / 轨道展开 HUD /
+        镜头光斑 / 四层时间轴 / 左景右档
+   ══════════════════════════════════════════════════════════════ */
+
+/* ---------------------------- 字符解码 ---------------------------- */
+.decode-char {
+  display: inline-block;
+  transform: translateY(4px);
+  filter: blur(3px);
+  opacity: 0.55;
+  transition: transform 180ms var(--ease-out), filter 180ms var(--ease-out), opacity 180ms linear;
+}
+.decode-char.is-final {
+  transform: translateY(0);
+  filter: blur(0);
+  opacity: 1;
+}
+
+/* ------------------------------ 开场 ------------------------------ */
+/* 覆盖 v2 的逐字 fade-in：解码动画自己负责字形，这里不再叠一层 */
+.intro__title span,
+.intro__sub span,
+.intro__cn span {
+  animation: none !important;
+  opacity: 1;
+}
+.intro__sub,
+.intro__cn,
+.intro__cta,
+.intro__hint {
+  animation: none !important;
+  opacity: 1;
+  transform: none;
+}
+.intro__orbit,
+.intro__stars {
+  display: none !important;
+}
+
+.intro {
+  background: transparent;
+  transition: opacity 620ms var(--ease-out), visibility 620ms;
+}
+.atlas[data-mode='ENTERING'] .intro,
+.atlas[data-mode='ATLAS'] .intro,
+.atlas[data-mode='SYSTEM_FOCUS'] .intro,
+.atlas[data-mode='OBJECT_FOCUS'] .intro {
+  opacity: 0;
+  transform: none;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.intro__scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(70% 55% at 26% 34%, rgba(10, 12, 20, 0.42) 0%, rgba(2, 3, 6, 0.72) 62%, rgba(2, 3, 6, 0.92) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.72) 100%);
+  pointer-events: none;
+}
+.intro__inner {
+  position: relative;
+  z-index: 3;
+  padding: 0 6vw;
+  text-align: left;
+  max-width: min(1080px, 82vw);
+}
+.intro__edition {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 26px;
+}
+.intro__title {
+  justify-content: flex-start;
+  letter-spacing: 0.2em;
+}
+.intro__rule {
+  width: 0;
+  height: 1px;
+  margin: 24px 0 22px;
+  background: var(--line-bright);
+  animation: intro-rule 900ms var(--ease-out) 0.78s forwards;
+}
+@keyframes intro-rule { to { width: 190px; } }
+.intro__sub { text-align: left; }
+.intro__cn {
+  max-width: 560px;
+  margin: 18px 0 0;
+  opacity: 0;
+  animation: intro-fade 800ms var(--ease-out) 1.1s forwards !important;
+}
+@keyframes intro-fade { to { opacity: 1; } }
+.intro__cta {
+  margin-top: 34px;
+  margin-left: 0;
+  opacity: 0;
+  animation: intro-fade 520ms var(--ease-out) 1.05s forwards !important;
+}
+.intro__hint {
+  text-align: left;
+  margin-top: 16px;
+  opacity: 0;
+  animation: intro-fade 520ms var(--ease-out) 1.2s forwards !important;
+}
+.atlas .intro[data-ready='no'] .intro__cta {
+  pointer-events: none;
+}
+
+.intro__telemetry {
+  position: absolute;
+  left: 6vw;
+  bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  z-index: 3;
+}
+.intro__pulse {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--node);
+  box-shadow: 0 0 10px rgba(197, 138, 85, 0.8);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+.intro__skip {
+  opacity: 1 !important;
+  animation: none !important;
+  z-index: 4;
+}
+
+/* ---------------------------- 层级返回 ---------------------------- */
+.backbtn {
+  position: absolute;
+  top: 30px;
+  left: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px 7px 12px;
+  background: rgba(6, 6, 8, 0.72);
+  border: 1px solid var(--line);
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  animation: panel-in 380ms var(--ease-out) both;
+  transition: color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
+}
+.backbtn i {
+  width: 14px;
+  height: 1px;
+  background: currentColor;
+  transform-origin: left center;
+  transition: transform var(--t-hover) var(--ease-out);
+}
+.backbtn:hover { color: var(--ink); border-color: var(--line-bright); }
+.backbtn:hover i { transform: scaleX(1.6); }
+
+/* -------------------------- 轨道展开 HUD -------------------------- */
+.unfold {
+  position: absolute;
+  left: 34px;
+  bottom: 176px;
+  width: 268px;
+  padding: 14px 16px 15px;
+  background: rgba(6, 6, 8, 0.76);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+  transition: opacity 320ms var(--ease-out), transform 320ms var(--ease-out);
+}
+.unfold[data-open='yes'] { opacity: 1; transform: translateY(0); }
+.unfold__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 9px;
+}
+.unfold__title {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.unfold__value {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--node);
+  font-variant-numeric: tabular-nums;
+}
+.unfold__bar {
+  position: relative;
+  height: 2px;
+  background: rgba(52, 52, 47, 0.8);
+  overflow: hidden;
+}
+.unfold__bar i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--node);
+  transition: width 90ms linear;
+}
+.unfold__desc {
+  margin-top: 10px;
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--ink-muted);
+}
+.unfold[data-done='yes'] .unfold__desc { color: var(--ink-dim); }
+.unfold[data-done='yes'] .unfold__value { color: var(--ink-dim); }
+
+/* ---------------------------- 镜头光斑 ---------------------------- */
+.flare {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transition: opacity 260ms linear;
+  z-index: 3;
+}
+.flare__core,
+.flare__ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  border-radius: 50%;
+  transform: translate3d(0, 0, 0);
+}
+.flare__core {
+  width: 220px;
+  height: 220px;
+  margin: -110px 0 0 -110px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 246, 232, 0.24) 0%,
+    rgba(255, 222, 184, 0.09) 34%,
+    rgba(255, 200, 150, 0) 70%
+  );
+  mix-blend-mode: screen;
+}
+.flare__ghost {
+  width: 90px;
+  height: 90px;
+  margin: -45px 0 0 -45px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 236, 214, 0.13) 0%,
+    rgba(190, 210, 255, 0.05) 46%,
+    rgba(180, 200, 255, 0) 72%
+  );
+  mix-blend-mode: screen;
+}
+
+/* ---------------------------- 时间轴 v3 ---------------------------- */
+.timeline {
+  left: 34px;
+  right: 34px;
+  bottom: 22px;
+  padding-top: 14px;
+}
+.timeline__head {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  margin-bottom: 10px;
+}
+.timeline__year {
+  font-size: 24px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.timeline__stat {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.timeline__stat i {
+  font-style: normal;
+  font-size: 8.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-left: 6px;
+}
+.timeline__play {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
+}
+.timeline__play:hover { color: var(--ink); border-color: var(--line-bright); }
+.timeline__play[aria-pressed='true'] { color: var(--bg); background: var(--node); border-color: var(--node); }
+
+.timeline__track {
+  position: relative;
+  height: 82px;
+  cursor: ew-resize;
+}
+/* 1 年份标尺：连续的主轴 + 每年刻度 */
+.timeline__axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 30px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(125, 122, 112, 0.25), var(--line-bright), rgba(125, 122, 112, 0.25));
+}
+.timeline__ticks { position: absolute; inset: 0; }
+.timeline__tick {
+  position: absolute;
+  top: 26px;
+  width: 1px;
+  height: 5px;
+  background: rgba(52, 52, 47, 0.85);
+}
+.timeline__tick--major {
+  top: 22px;
+  height: 17px;
+  background: var(--line-bright);
+}
+/* 3 任务跨度 */
+.timeline__spans { position: absolute; inset: 0; }
+.timeline__span {
+  position: absolute;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(197, 138, 85, 0.16), rgba(197, 138, 85, 0.3));
+  border-left: 1px solid rgba(197, 138, 85, 0.5);
+  cursor: pointer;
+  transition: background 200ms var(--ease-out);
+}
+.timeline__span[data-row='0'] { top: 6px; }
+.timeline__span[data-row='1'] { top: 14px; }
+.timeline__span:hover { background: rgba(197, 138, 85, 0.5); }
+/* 2 事件标记 */
+.timeline__events { position: absolute; inset: 0; }
+.timeline__dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  opacity: 0.4;
+  transition: background 320ms var(--ease-out), opacity 320ms var(--ease-out), transform 200ms var(--ease-out);
+  cursor: pointer;
+}
+.timeline__dot[data-row='0'] { top: 38px; }
+.timeline__dot[data-row='1'] { top: 48px; }
+.timeline__dot[data-row='2'] { top: 58px; }
+.timeline__dot[data-importance='1'] { width: 6px; height: 6px; margin-left: -3px; }
+.timeline__dot.is-before { background: var(--node); opacity: 0.92; }
+.timeline__dot:hover { transform: scale(1.9); background: var(--ink); opacity: 1; }
+/* 年份标签 */
+.timeline__labels { position: absolute; inset: 0; }
+.timeline__tick-label {
+  position: absolute;
+  top: 68px;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+/* 4 当前时刻 */
+.timeline__cursor {
+  position: absolute;
+  top: -6px;
+  bottom: 10px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(231, 225, 213, 0.15), rgba(231, 225, 213, 0.85));
+}
+.timeline__cursor span {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  background: var(--ink);
+  color: var(--bg);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+.timeline__cursor::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  width: 5px;
+  height: 5px;
+  background: var(--ink);
+  transform: rotate(45deg);
+  border: 0;
+}
+.timeline__annotation {
+  display: flex;
+  gap: 22px;
+  height: 15px;
+  margin-bottom: 2px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.timeline__annotation b {
+  color: var(--node);
+  font-weight: 400;
+  margin-right: 8px;
+}
+.atlas[data-archive='open'] .timeline { opacity: 0.4; }
+
+/* ------------------------- 左景右档：档案宽度 ------------------------- */
+.archive {
+  width: clamp(360px, 33vw, 540px);
+  padding: 30px 30px 40px;
+}
+.archive__list { display: grid; gap: 2px; }
+.archive__listitem {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 7px 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid rgba(52, 52, 47, 0.55);
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition: color var(--t-hover) var(--ease-out), padding-left var(--t-hover) var(--ease-out);
+}
+.archive__listitem:hover { color: var(--ink); padding-left: 6px; }
+.archive__body--dim { color: var(--ink-muted); }
+.archive__rows--key dd { color: var(--ink); }
+
+/* 逐层进入：标题 → 副标题 → 数据 → 故事 → 时间线 → 影像 */
+.archive > * { animation: archive-item 560ms var(--ease-out) both; }
+.archive > *:nth-child(1) { animation-delay: 0ms; }
+.archive > *:nth-child(2) { animation-delay: 70ms; }
+.archive > *:nth-child(3) { animation-delay: 130ms; }
+.archive > *:nth-child(4) { animation-delay: 180ms; }
+.archive > *:nth-child(5) { animation-delay: 230ms; }
+.archive > *:nth-child(6) { animation-delay: 290ms; }
+.archive > *:nth-child(7) { animation-delay: 350ms; }
+.archive > *:nth-child(n + 8) { animation-delay: 410ms; }
+
+/* ---------------------------- 区域标签 ---------------------------- */
+.label--region .label__text {
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  color: var(--ink-faint);
+}
+.label--region .leader { background: transparent; }
+.label--region .leader::after { border-color: transparent; }
+
+/* ---------------------------- 版面细节 ---------------------------- */
+.masthead__count {
+  margin-top: 14px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.atlas[data-focus='atlas'] .masthead { opacity: 1; }
+.atlas:not([data-focus='atlas']) .masthead { opacity: 0; transform: translateY(-8px); }
+.searchpanel__item em {
+  font-style: normal;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  color: var(--ink-faint);
+  margin-right: 4px;
+}
+
+@media (max-width: 1100px) {
+  .unfold { display: none; }
+  .archive { width: 100%; max-height: 56vh; top: auto; }
+}

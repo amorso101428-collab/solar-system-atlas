@@ -1,0 +1,42 @@
+/* ==========================================================================
+   v9 §23：右上角系统详情 HUD
+
+   放在原有右上工具区**上方**（top: 5px），字号小但保持可读；
+   不改变原有布局的任何一个坐标。浏览器拿不到的指标显示 N/A。
+   ========================================================================== */
+
+.telemetry {
+  position: fixed;
+  top: 5px;
+  right: 28px;
+  z-index: 76;
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  pointer-events: none;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  line-height: 1.35;
+  letter-spacing: 0.06em;
+  color: rgba(178, 174, 166, 0.86);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 6px rgba(4, 4, 8, 0.9);
+}
+.telemetry__row {
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+}
+.telemetry__row b {
+  font-weight: 500;
+  color: rgba(140, 136, 128, 0.8);
+}
+.telemetry__row--dim {
+  color: rgba(150, 146, 138, 0.72);
+}
+
+@media (max-width: 1240px) {
+  .telemetry {
+    right: 18px;
+  }
+}

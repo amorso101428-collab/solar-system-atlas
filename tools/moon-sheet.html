@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>moon texture sheet</title>
+    <style>
+      body { margin: 0; background: #08080a; color: #d8d4cc; font: 12px/1.4 monospace; }
+      main { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 12px; }
+      figure { margin: 0; }
+      img { width: 100%; display: block; background: #111; }
+      figcaption { padding-top: 4px; letter-spacing: 0.08em; text-transform: uppercase; }
+    </style>
+  </head>
+  <body>
+    <main id="grid"></main>
+    <script>
+      const names = [
+        'io', 'europa', 'ganymede', 'callisto',
+        'mimas', 'enceladus', 'tethys', 'dione',
+        'rhea', 'titan', 'phoebe', 'phobos',
+        'miranda', 'ariel', 'umbriel', 'titania',
+        'oberon', 'triton', 'charon'
+      ]
+      document.getElementById('grid').innerHTML = names
+        .map((name) => `<figure><img src="/public/moons/${name}.jpg" alt="${name}"><figcaption>${name}</figcaption></figure>`)
+        .join('')
+    </script>
+  </body>
+</html>

@@ -1,0 +1,305 @@
+/* ==========================================================================
+   v8 §27–§37：行星表面全息分析层
+
+   规则来自文档 §28：暖白 / 淡青 / 柔琥珀；线宽 0.5–1px；透明度 0.10–0.42。
+   禁止霓虹赛博描边、禁止发光按钮——这是科学标注，不是游戏 HUD。
+   ========================================================================== */
+
+.holo-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   v9.1：详情面板的标题栏与关闭按钮**吸顶**
+
+   之前它跟着面板内容一起滚走，用户读到长文中段就找不到"关闭"了。
+   面板 padding 是 30px，所以用负 margin 抵消，让吸顶条贴住面板顶边，
+   并加一层从面板底色渐隐的底衬，长文从它下面滑过时不会互相压字。
+   ========================================================================== */
+.archive__top {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: -30px -30px 14px;
+  padding: 22px 30px 10px;
+  background: linear-gradient(180deg, var(--panel-bg) 64%, rgba(6, 6, 9, 0) 100%);
+  backdrop-filter: blur(6px);
+}
+
+/**
+ * 聚焦行星 / 月球时，把图谱那层标签整体压暗（v8 §26）。
+ * 屏幕上只留两样东西清晰：**本体**与**它的全息标注**。
+ * 这里用整层不透明度而不是逐个改，是因为标签层是 DOM，
+ * 逐个改会每帧触发上百次样式写入。
+ */
+.atlas[data-focus='planet'] .label-layer,
+.atlas[data-focus='moon'] .label-layer {
+  opacity: 0.28;
+  transition: opacity 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.holo-node {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  transition: opacity 220ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform, opacity;
+}
+
+/* 特征点 */
+.holo-node__dot {
+  position: absolute;
+  left: -2.5px;
+  top: -2.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(232, 240, 246, 0.86);
+  box-shadow: 0 0 0 1px rgba(150, 180, 200, 0.34);
+}
+
+/* 范围圈：椭圆轮廓，不是实心高亮 */
+.holo-node__ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(178, 206, 218, 0.32);
+  border-radius: 50%;
+}
+
+/* 引线：一条 1px 的短线，从头指向标签 */
+.holo-node__leader {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(200, 216, 226, 0.55) 0%,
+    rgba(200, 216, 226, 0.16) 100%
+  );
+  transform-origin: left center;
+}
+
+.holo-node__label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  gap: 2px;
+  white-space: nowrap;
+}
+.holo-node__name {
+  font-family: var(--mono, ui-monospace, monospace);
+  /* v8.1：全息标注是主要可读信息，字号与字重都要比背景标签更实 */
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  color: rgba(238, 244, 249, 0.96);
+}
+.holo-node__meta {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: rgba(190, 208, 220, 0.86);
+}
+
+/* ---- 临边数据刻度（大气分层 / 内部结构 / 环系） ---- */
+.holo-ruler {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  gap: 3px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(178, 206, 218, 0.28);
+  transition: opacity 240ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform, opacity;
+}
+.holo-ruler__row {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 10px;
+  align-items: baseline;
+}
+.holo-ruler__row b {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: rgba(236, 242, 248, 0.94);
+}
+.holo-ruler__row span {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: rgba(224, 186, 142, 0.92);
+}
+.holo-ruler__row em {
+  grid-column: 1 / -1;
+  font-style: normal;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: rgba(166, 186, 200, 0.76);
+}
+
+/* ---- 抬头 ---- */
+.holo-caption {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  gap: 3px;
+  transition: opacity 240ms ease-out;
+  will-change: transform, opacity;
+}
+.holo-caption b {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: rgba(224, 186, 142, 0.94);
+}
+.holo-caption span {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(186, 204, 216, 0.82);
+}
+
+/* 右侧档案里的地貌清单（v8 §37：球面只放少量标注，解释在这里） */
+.archive__features {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 9px;
+}
+.archive__features li {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(120, 116, 108, 0.16);
+}
+.archive__features li b {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--ink, #e8e4dc);
+}
+.archive__features li span {
+  font-size: 12px;
+  color: rgba(168, 164, 156, 0.9);
+}
+.archive__features li em {
+  font-style: normal;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(150, 146, 138, 0.7);
+}
+
+/* ---- v9 §10 / §11：详情页的长文排版（阅读节奏） ---- */
+.archive__lead {
+  margin: 0;
+  font-size: 13px;
+  line-height: 2;
+  letter-spacing: 0.02em;
+  color: rgba(212, 208, 200, 0.94);
+}
+.archive__article {
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid rgba(120, 116, 108, 0.18);
+}
+.archive__article details {
+  border-bottom: 1px solid rgba(120, 116, 108, 0.18);
+}
+.archive__article summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 2px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(214, 176, 132, 0.9);
+  transition: color 180ms ease-out;
+}
+.archive__article summary::-webkit-details-marker {
+  display: none;
+}
+.archive__article summary:hover {
+  color: rgba(238, 214, 178, 1);
+}
+.archive__article summary em {
+  font-style: normal;
+  font-size: 9px;
+  color: rgba(140, 136, 128, 0.7);
+}
+.archive__article details[open] summary {
+  color: rgba(238, 214, 178, 1);
+}
+.archive__article details p {
+  margin: 0 0 16px;
+  font-size: 12.5px;
+  line-height: 2.05;
+  letter-spacing: 0.01em;
+  color: rgba(198, 194, 186, 0.94);
+}
+
+.archive__timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.archive__timeline li {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: rgba(198, 194, 186, 0.92);
+}
+.archive__timeline b {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: rgba(214, 176, 132, 0.9);
+}
+
+.archive__sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.archive__sources a {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: rgba(170, 190, 206, 0.9);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(170, 190, 206, 0.28);
+}
+.archive__sources a:hover {
+  color: rgba(212, 226, 238, 1);
+}

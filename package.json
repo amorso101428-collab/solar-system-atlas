@@ -1,0 +1,32 @@
+{
+  "name": "solar-system-atlas",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "HUMAN ARTIFACTS — A Cartography of Humanity in the Solar System",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc --noEmit",
+    "deploy:pages": "npm run build && npx wrangler pages deploy dist --project-name=solar-system-atlas --branch=main --commit-dirty=true"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.8",
+    "@react-three/fiber": "^9.7.0",
+    "motion": "^13.4.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "satellite.js": "^7.1.0",
+    "three": "^0.186.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
+  }
+}

@@ -1,0 +1,1157 @@
+/* ══════════════════════════════════════════════════════════════
+   v4：开场文字最终清晰 / 顶部导航 / 位置模式 / 黄道网格 /
+       三圈结构 / 标签与返回键不再重叠
+   ══════════════════════════════════════════════════════════════ */
+
+/* ------------------------- 开场标题必须最终清晰 -------------------------
+   atlas-v2 里 `.intro__title span` 自带 `filter: blur(10px)`（原来是给逐字
+   fade-in 用的）。v3 关掉了那层动画，但 `filter` 是写在基础规则里的，
+   于是**外层包裹 span 一直被 blur(10px) 罩着**——子元素哪怕自己 blur(0)
+   也会被父层的 filter 一起糊掉，这就是"HUMAN 那几个字一直模糊"的原因。
+   这里把包裹层彻底复位，模糊只由 .decode-char 自己负责，并且最终归零。 */
+.intro__title,
+.intro__sub,
+.intro__cn,
+.intro__title span,
+.intro__sub span,
+.intro__cn span {
+  filter: none !important;
+  transform: none !important;
+}
+/* 只有"还没解码完成"的字符允许模糊；解码完成的字符必须是硬的 */
+.decode-char:not(.is-final) {
+  filter: blur(2.6px) !important;
+  opacity: 0.7;
+}
+.decode-char.is-final {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* 标题必须一行读完：HUMAN ARTIFACTS 不允许断成两行 */
+.intro__title {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  font-size: clamp(22px, 3.5vw, 52px);
+  letter-spacing: 0.16em;
+}
+/* 词间距（v7 §16）：逐字解码把每个字符放进 inline-block 的 span，
+   而纯空白的 inline-block 宽度为 0，所以空格必须自己撑开。 */
+.decode-char.is-space {
+  width: 0.58em;
+}
+
+/* ---------------------------- 顶部导航栏 ----------------------------
+   v7 §15：这里曾经是 flex + max-width: 1040px。那一版留下的 max-width 让
+   整个导航栏只占 1040px，于是"正中"的场景控制实际中心落在 x≈548，而不是
+   视口中心；右上工具组也跟着左移。真正的布局规则在文件下半部分（grid 三栏），
+   这一条已经删掉，只保留导航按钮内部的排版。 */
+.navbtn em {
+  font-style: normal;
+  margin-left: 7px;
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  color: var(--ink-faint);
+}
+.navbtn[aria-pressed='true'] em,
+.navbtn[data-open='yes'] em {
+  color: var(--node);
+}
+.navbtn--home {
+  color: var(--ink-dim);
+  letter-spacing: 0.26em;
+}
+.navgroup {
+  position: relative;
+}
+.navmenu {
+  position: absolute;
+  top: 26px;
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 168px;
+  padding: 8px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--panel-blur));
+  border: 1px solid var(--line);
+  animation: panel-in 260ms var(--ease-out) both;
+}
+.navmenu__item {
+  padding: 7px 10px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color var(--t-hover) var(--ease-out), background var(--t-hover) var(--ease-out);
+}
+.navmenu__item:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.03);
+}
+.navmenu__item[aria-pressed='true'] {
+  color: var(--node);
+}
+
+/* 视图菜单：复选框 + 透明度滑块（v5 §17 / §21） */
+.navmenu--wide {
+  min-width: 268px;
+}
+.navmenu__check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: color var(--t-hover) var(--ease-out);
+}
+.navmenu__check:hover {
+  color: var(--ink);
+}
+.navmenu__check input {
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--line-bright);
+  background: transparent;
+}
+.navmenu__check input:checked {
+  background: var(--node);
+  border-color: var(--node);
+}
+.navmenu__rule {
+  height: 1px;
+  margin: 7px 6px;
+  background: var(--line);
+}
+.navmenu__slider {
+  padding: 4px 10px 8px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+}
+.navmenu__slider input {
+  width: 100%;
+  margin-top: 8px;
+  accent-color: var(--node);
+}
+
+/* ------------------------------ 数据出处 ------------------------------ */
+.provenance {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.provenance h4 {
+  margin: 0 0 12px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.provenance__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 7px;
+}
+.provenance__list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.provenance__list a {
+  color: var(--ink-dim);
+  font-size: 11px;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color var(--t-hover) var(--ease-out), border-color var(--t-hover) var(--ease-out);
+}
+.provenance__list a:hover {
+  color: var(--node);
+  border-color: var(--node);
+}
+.provenance__list em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+}
+.provenance__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.provenance__extra {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--ink-muted);
+}
+
+/* 空间天气：本轮只留一个说明性的空位 */
+.weatherpanel {
+  width: 320px;
+  padding: 16px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--panel-blur));
+  border: 1px solid var(--line);
+  animation: panel-in 320ms var(--ease-out) both;
+}
+.weatherpanel__tag {
+  display: inline-block;
+  margin-bottom: 10px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  letter-spacing: 0.24em;
+  color: var(--node);
+}
+.weatherpanel h4 {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: var(--ink-dim);
+}
+.weatherpanel p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--ink-muted);
+}
+
+/* ------------------- 左上角三层：主页 / 返回键 / 品牌标题 -------------------
+   v7 §15 / §21。左上角现在要放三样东西，必须**从上到下排开**：
+       导航行        y 22 – 63    ⌂ 主页
+       返回键        y 78 – 107   ← 太阳系总览
+       品牌标题      y 88 起（有返回键时 y 122 起）
+   旧版把品牌标题钉在 top: 30，正好压在"主页"按钮上（两个元素叠在一起，
+   截图里能同时看到"人"字和主页图标）；有返回键时的 96px 也只让开了一半，
+   标题第一行仍然压在返回键上。 */
+.masthead {
+  top: 88px;
+}
+.atlas[data-back='yes'] .masthead {
+  top: 122px;
+}
+
+/* ------------------- 右侧面板打开时，只有时间轴让位 -------------------
+   面板宽度是变量 --panel-w（移动端下会变成整幅），所以用变量算，不写死像素。
+   **导航栏绝对不让位**（v7 §21）：档案面板从 top: 74px 开始，本来就在导航
+   下面一层；以前这里给 .topbar 也设了 right，结果面板一开导航栏就从 1574px
+   缩到 1116px，"正中"的场景控制跟着往左跳——这正是"点进详情页菜单就乱了"。
+   现在导航栏是全宽固定层，任何面板都不改变它的宽度、位置和换行。 */
+.atlas[data-panel='open'] .timeline {
+  right: calc(var(--panel-w) + 34px);
+}
+@media (max-width: 1100px) {
+  .atlas[data-panel='open'] .topbar,
+  .atlas[data-panel='open'] .timeline {
+    right: 18px;
+  }
+}
+
+/* ------------------------------ 标签层 ------------------------------ */
+.label-layer {
+  pointer-events: none;
+}
+/**
+ * 开场（v7 §9 / §24）。
+ *
+ * 标签层和开场层是两套东西：开场时相机已经落在图谱的构图上，于是彗星、卫星的
+ * 标签会被投影到屏幕正中——正好压住"人类在太阳系留下的 / 一份坐标图谱"和
+ * 三行中文说明。方案书要求"第一眼像进入宇宙"，那就不能先看到一堆注释。
+ *
+ * 所以：INTRO 期间整层隐藏；点"进入图谱"之后延迟 620ms 再淡入，
+ * 正好落在 §9 的 900–1400ms "标签归位"那一段。
+ */
+.label-layer {
+  transition: opacity 780ms cubic-bezier(0.22, 0.61, 0.36, 1) 620ms;
+}
+.atlas[data-mode='INTRO'] .label-layer {
+  opacity: 0;
+  transition: none;
+}
+.atlas[data-grid='on'] .label--region {
+  opacity: 0.9;
+}
+
+/* ------------------------------ 彗星（v6 §4） ------------------------------
+   彗星完全用平面 UI 表示：一个核 + 一条指向"背离太阳"方向的尾迹。
+   整枚标记挂在 label-layer 里，跟随投影坐标平移、并按尾迹方向整体旋转，
+   所以尾迹永远是屏幕空间的等粗细线，不会随镜头缩放变成一根光棒。 */
+.comet-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* 彗核外面的一圈细环（v7 §12：只有核，没有尾迹线） */
+.comet-marker__ring {
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(176, 206, 232, 0.32);
+  border-radius: 50%;
+}
+
+/* 彗核：一点点 + 一圈虚线靶环，和航天器标记同一套语言 */
+.comet-marker__head {
+  position: absolute;
+  left: -2.5px;
+  top: -2.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(214, 232, 248, 0.9);
+  box-shadow: 0 0 0 1px rgba(176, 206, 232, 0.36), 0 0 6px 1px rgba(150, 190, 226, 0.28);
+}
+
+.comet-marker.is-hovered .comet-marker__ring,
+.comet-marker.is-selected .comet-marker__ring {
+  border-color: rgba(232, 216, 190, 0.85);
+}
+
+.comet-marker.is-selected .comet-marker__head {
+  background: var(--node);
+  box-shadow: 0 0 0 1px rgba(197, 138, 85, 0.5), 0 0 8px 2px rgba(197, 138, 85, 0.35);
+}
+
+/* ==========================================================================
+   v6 §6 / §7 / §8：字体、文字动效、自定义光标、禁止误选
+   ========================================================================== */
+
+/* ---- 1) 字号 / 字重整体上调一档：10px / 400 在 1600 宽的画布上读不清 ---- */
+.label__text {
+  /* v8.1：11.5px / 0.14em 在高分屏上偏小偏细，读不清；统一提一档 */
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+}
+.label--planet .label__text {
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  color: var(--ink);
+}
+.label--moon .label__text {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+.label--object .label__text {
+  font-size: 11px;
+}
+.label__sub {
+  font-size: 10.5px;
+  color: var(--ink-muted);
+}
+
+.navbtn {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+.navmenu__item,
+.navmenu__check {
+  font-size: 11.5px;
+}
+.searchpanel__item {
+  font-size: 12px;
+}
+.searchpanel__item em {
+  font-size: 9.5px;
+}
+
+.timeline__year {
+  font-size: 26px;
+}
+.timeline__stat {
+  font-size: 12px;
+}
+.timeline__stat i {
+  font-size: 9.5px;
+}
+.timeline__tick-label {
+  font-size: 10px;
+}
+.timeline__hint {
+  font-size: 10.5px;
+}
+
+.masthead p {
+  font-size: 11px;
+}
+.masthead__count {
+  font-size: 10px;
+  color: var(--ink-muted);
+}
+
+.archive__type {
+  font-size: 11px;
+}
+.archive__body {
+  font-size: 13.5px;
+}
+.archive__row dt {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+.archive__row dd {
+  font-size: 12px;
+}
+.guide__key {
+  font-size: 10.5px;
+}
+.guide__desc {
+  font-size: 12.5px;
+}
+
+/* ---- 2) 文字动效：出现 / 消失是渐变，hover 有扫描式的字距与颜色过渡 ---- */
+.label,
+.comet-marker,
+.leader {
+  transition: opacity 260ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.label__text,
+.label__sub {
+  transition: color 220ms ease-out, letter-spacing 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.label--planet:hover .label__text,
+.label--object:hover .label__text {
+  letter-spacing: 0.26em;
+}
+.comet-marker__ring,
+.comet-marker__head {
+  transition: opacity 220ms ease-out, background 220ms ease-out, border-color 220ms ease-out;
+}
+/* 顶部导航：hover 时从左侧扫出一条细下划线，替代生硬的高亮 */
+.navbtn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 320ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.navbtn:hover::after,
+.navbtn[aria-pressed='true']::after {
+  transform: scaleX(1);
+}
+
+/* ---- 3) 网页自定义光标：十字准线 + 圆环，跟随指针 ---- */
+.atlas,
+.atlas * {
+  cursor: none !important;
+}
+.atlas-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: 400;
+  pointer-events: none;
+  will-change: transform;
+}
+.atlas-cursor__ring {
+  position: absolute;
+  left: -10px;
+  top: -10px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(231, 225, 213, 0.5);
+  border-radius: 50%;
+  transition: width 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    height 200ms cubic-bezier(0.22, 0.61, 0.36, 1), left 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    top 200ms cubic-bezier(0.22, 0.61, 0.36, 1), border-color 200ms ease-out, opacity 200ms ease-out;
+}
+.atlas-cursor__dot {
+  position: absolute;
+  left: -1.5px;
+  top: -1.5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--ink);
+}
+.atlas-cursor__x,
+.atlas-cursor__y {
+  position: absolute;
+  background: rgba(231, 225, 213, 0.42);
+  transition: opacity 200ms ease-out, background 200ms ease-out;
+}
+.atlas-cursor__x {
+  left: -13px;
+  top: -0.5px;
+  width: 26px;
+  height: 1px;
+}
+.atlas-cursor__y {
+  left: -0.5px;
+  top: -13px;
+  width: 1px;
+  height: 26px;
+}
+/* 悬停到天体 / 航天器上：圆环张开、变暖色，十字收短 */
+.atlas-cursor[data-target='yes'] .atlas-cursor__ring {
+  left: -17px;
+  top: -17px;
+  width: 34px;
+  height: 34px;
+  border-color: var(--node);
+  box-shadow: 0 0 12px 1px rgba(197, 138, 85, 0.28);
+}
+.atlas-cursor[data-target='yes'] .atlas-cursor__x,
+.atlas-cursor[data-target='yes'] .atlas-cursor__y {
+  opacity: 0;
+}
+.atlas-cursor[data-target='yes'] .atlas-cursor__dot {
+  background: var(--node);
+}
+/* 悬停到 UI 控件上：环再大一点、更亮 */
+.atlas-cursor[data-ui='yes'] .atlas-cursor__ring {
+  left: -14px;
+  top: -14px;
+  width: 28px;
+  height: 28px;
+  border-color: rgba(231, 225, 213, 0.85);
+}
+/* 按下：环收缩 */
+.atlas-cursor[data-pressed='yes'] .atlas-cursor__ring {
+  left: -7px;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+}
+
+/* ---- 4) 拖动 / 滚动时不再误选文字（输入框除外） ---- */
+.atlas,
+.atlas * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.atlas input,
+.atlas textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ==========================================================================
+   v7 §2 / §10 / §15：顶部导航骨架
+
+   一条铁律：**TopBar 不参与任何其它 UI 的布局**。
+   它是 fixed 的三栏 grid —— 左上 主页 / 正中 场景控制 / 右上 工具，
+   每一栏 justify-self 固定，按钮 nowrap 且不参与收缩。
+   详情面板改为从导航底下开始（top: 74px），所以打开面板时
+   导航的位置、尺寸、换行都不会发生任何变化。
+   ========================================================================== */
+.topbar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  display: block;
+  flex-direction: row;
+  align-items: stretch;
+  padding: 22px 28px 0;
+  pointer-events: none;
+  z-index: 70;
+}
+.topbar__row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 20px;
+  min-height: var(--ui-topbar-height);
+  pointer-events: none;
+}
+.topbar__row > * {
+  pointer-events: auto;
+}
+.topbar__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: flex-start;
+  justify-self: start;
+}
+.topbar__scene {
+  display: flex;
+  align-items: center;
+  gap: var(--ui-gap);
+  justify-self: center;
+  padding: 7px 18px;
+  border: 1px solid rgba(52, 52, 47, 0.7);
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgba(8, 8, 8, 0.72), rgba(6, 6, 6, 0.42));
+  backdrop-filter: blur(6px);
+}
+.topbar__utility {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  justify-self: end;
+  gap: var(--ui-gap);
+}
+.topbar .navbtn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.topbar__utility .navbtn {
+  color: var(--ink-faint);
+}
+.topbar__utility .navbtn:hover {
+  color: var(--ink-dim);
+}
+/* 详情 / 目录 / 搜索面板都从导航底下开始，绝不动导航 */
+.atlas[data-panel='open'] .topbar {
+  padding-right: 28px;
+}
+/**
+ * 返回键与左上角的"主页"都属于左上区域，不能让它们叠在一起（v7 §2）：
+ * 有返回键时，返回键整体下移到导航下面一行。
+ */
+.atlas[data-back='yes'] .backbtn {
+  top: 78px;
+}
+/* 详情面板：从导航底下开始，宽度上限按视口算（v7 §3） */
+.archive,
+.catalogpanel {
+  top: 74px;
+  bottom: 0;
+  /* v9 §9：详情页在右侧至少占 1/3 视口（建议 36~39vw） */
+  width: var(--panel-w);
+  max-height: calc(100vh - 74px);
+  border-radius: var(--ui-radius) 0 0 0;
+}
+@media (max-width: 1240px) {
+  .archive,
+  .catalogpanel {
+    width: min(520px, 46vw);
+  }
+}
+@media (max-width: 1240px) {
+  .topbar {
+    padding: 16px 18px 0;
+  }
+  .topbar__row {
+    grid-template-columns: auto 1fr;
+    row-gap: 8px;
+  }
+  .topbar__scene {
+    grid-column: 1 / -1;
+    justify-self: center;
+  }
+}
+
+/* ---- 导航微动效（v7 §17 / §18）：位移 + 细线展开，不靠变色 ---- */
+.navbtn {
+  transition: color 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.navbtn:hover {
+  transform: translateY(-1px);
+}
+.navbtn::after {
+  background: var(--line-bright);
+  transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1), background 200ms ease-out;
+}
+.navbtn:hover::after,
+.navbtn[aria-pressed='true']::after,
+.navbtn[aria-expanded='true']::after {
+  background: var(--node);
+}
+
+/* ---- 下拉菜单出现动画：opacity + translateY(-4px) + scale(.98) ---- */
+.navmenu {
+  transform-origin: 50% 0;
+  animation: navmenu-in 200ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes navmenu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.navmenu > * {
+  animation: navmenu-item-in 220ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+.navmenu > *:nth-child(1) { animation-delay: 40ms; }
+.navmenu > *:nth-child(2) { animation-delay: 62ms; }
+.navmenu > *:nth-child(3) { animation-delay: 84ms; }
+.navmenu > *:nth-child(4) { animation-delay: 106ms; }
+.navmenu > *:nth-child(5) { animation-delay: 128ms; }
+.navmenu > *:nth-child(6) { animation-delay: 150ms; }
+.navmenu > *:nth-child(7) { animation-delay: 172ms; }
+.navmenu > *:nth-child(n + 8) { animation-delay: 190ms; }
+@keyframes navmenu-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* 菜单分组标题（v7 §16：对象 → 任务类别 / 任务机构） */
+.navmenu__group {
+  margin-top: 4px;
+  padding: 2px 10px 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+.navmenu__group:first-child {
+  margin-top: 0;
+}
+.navmenu__hint {
+  padding: 0 10px 8px;
+  max-width: 240px;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  line-height: 1.7;
+  color: var(--ink-faint);
+}
+
+/* 两行式子菜单项：主标题 + 一行小字说明（v7 §16） */
+.navmenu__item--stack {
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+.navmenu__item--stack small {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-faint);
+}
+.navmenu__item--stack[aria-pressed='true'] small {
+  color: var(--ink-muted);
+}
+
+/* ==========================================================================
+   v7 §20：背景音乐面板（接口已就绪，默认无曲目）
+   ========================================================================== */
+.musicpanel {
+  min-width: var(--ui-menu-width);
+  padding-bottom: 10px;
+}
+.musicpanel__state {
+  padding: 0 12px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--ink-faint);
+}
+.musicpanel__state[data-on='yes'] {
+  color: var(--node);
+}
+.musicpanel__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--ink-muted);
+}
+.musicpanel__none {
+  color: var(--ink-faint);
+}
+.musicpanel__row input[type='range'] {
+  width: 96px;
+}
+.musicpanel__play {
+  margin: 8px 12px 4px;
+  padding: 7px 10px;
+  border: 1px solid var(--ui-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--ink-dim);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  transition: border-color 200ms ease-out, color 200ms ease-out;
+}
+.musicpanel__play:hover:not(:disabled) {
+  border-color: var(--line-bright);
+  color: var(--ink);
+}
+.musicpanel__play:disabled {
+  opacity: 0.4;
+}
+.musicpanel__ready {
+  padding: 6px 12px 0;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--ink-faint);
+}
+
+/* ==========================================================================
+   v7 §6 / §7：在轨目录面板（信息为主，点位只是注脚）
+   ========================================================================== */
+.catalogpanel {
+  position: fixed;
+  right: 0;
+  top: 74px;
+  bottom: 0;
+  width: var(--panel-w);
+  padding: 26px 30px 40px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(var(--panel-blur));
+  border-left: 1px solid var(--line);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  z-index: 65;
+  animation: panel-in 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.catalogpanel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 18px 0 6px;
+}
+.catalogpanel__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--ui-border);
+  background: transparent;
+  color: var(--ink-muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  transition: border-color 200ms ease-out, color 200ms ease-out, background 200ms ease-out;
+}
+.catalogpanel__chip em {
+  font-style: normal;
+  color: var(--ink-faint);
+}
+.catalogpanel__chip:hover {
+  color: var(--ink-dim);
+  border-color: var(--line-bright);
+}
+.catalogpanel__chip[aria-pressed='true'] {
+  color: var(--ink);
+  border-color: var(--node);
+  background: rgba(197, 138, 85, 0.08);
+}
+.catalogpanel__search,
+.archive__search {
+  width: 100%;
+  margin: 8px 0 10px;
+  padding: 7px 9px;
+  border: 1px solid var(--ui-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+.catalogpanel__search:focus,
+.archive__search:focus {
+  outline: none;
+  border-color: var(--line-bright);
+}
+.archive__listitem .catalogpanel__meta {
+  display: block;
+  margin-top: 3px;
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   v6 §11：新手引导（悬浮小手 + 三行说明，只出现一次）
+   ========================================================================== */
+.onboard {
+  position: absolute;
+  left: 40px;
+  bottom: 214px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px 14px 18px;
+  border: 1px solid rgba(52, 52, 47, 0.85);
+  border-radius: 2px;
+  background: rgba(6, 6, 6, 0.62);
+  backdrop-filter: blur(8px);
+  color: var(--ink-dim);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 420ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 420ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  pointer-events: none;
+}
+.onboard[data-visible='yes'] {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.onboard__hand {
+  color: var(--ink-muted);
+  /* 小手左右轻移：用位移讲"拖动"，不用文字解释 */
+  animation: onboard-drag 2000ms cubic-bezier(0.33, 0, 0.2, 1) infinite;
+}
+@keyframes onboard-drag {
+  0%,
+  100% {
+    transform: translateX(-7px);
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateX(7px);
+    opacity: 1;
+  }
+}
+.onboard__body {
+  display: grid;
+  gap: 3px;
+}
+.onboard__title {
+  font-family: var(--sans);
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+}
+.onboard__line {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-muted);
+}
+.onboard__close {
+  margin-left: 8px;
+  padding: 4px 8px;
+  border: 1px solid rgba(52, 52, 47, 0.9);
+  background: transparent;
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  transition: color 200ms ease-out, border-color 200ms ease-out;
+}
+.onboard__close:hover {
+  color: var(--ink);
+  border-color: var(--line-bright);
+}
+@media (max-width: 1180px) {
+  .onboard {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   v6 §5：主页背景的"仪器感"动效
+   只加两样东西——一条极淡的横向扫描线，和几行缓慢呼吸的遥测文字。
+   星场本身保持不动（背景忽明忽暗会让视觉层级崩掉）。
+   ========================================================================== */
+.intro__scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(231, 225, 213, 0) 0%,
+    rgba(231, 225, 213, 0.16) 22%,
+    rgba(231, 225, 213, 0.28) 50%,
+    rgba(231, 225, 213, 0.16) 78%,
+    rgba(231, 225, 213, 0) 100%
+  );
+  opacity: 0;
+  animation: intro-scan 9000ms cubic-bezier(0.5, 0, 0.5, 1) infinite;
+  pointer-events: none;
+}
+@keyframes intro-scan {
+  0% {
+    transform: translateY(6vh);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  88% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(94vh);
+    opacity: 0;
+  }
+}
+.intro__status {
+  position: absolute;
+  left: 40px;
+  bottom: 34px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--ink-faint);
+  pointer-events: none;
+}
+.intro__status li {
+  opacity: 0.12;
+  animation: intro-status 7200ms ease-in-out infinite;
+}
+.intro__status li:nth-child(2) {
+  animation-delay: 900ms;
+}
+.intro__status li:nth-child(3) {
+  animation-delay: 2100ms;
+}
+.intro__status li:nth-child(4) {
+  animation-delay: 3300ms;
+}
+/* v7 §9：进入图谱的 1.4s 里，主页内容整体 dissolve（不淡到黑、不瞬间消失） */
+.intro__inner,
+.intro__status,
+.intro__telemetry,
+.intro__skip,
+.intro__scan {
+  transition: opacity 1100ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 1400ms cubic-bezier(0.33, 0, 0.2, 1), filter 1100ms ease-out;
+}
+.intro__inner {
+  transform-origin: 50% 60%;
+}
+.intro[data-leaving='yes'] .intro__inner {
+  opacity: 0;
+  transform: scale(1.06) translateY(-12px);
+  filter: blur(3px);
+}
+.intro[data-leaving='yes'] .intro__status,
+.intro[data-leaving='yes'] .intro__skip,
+.intro[data-leaving='yes'] .intro__scan {
+  opacity: 0;
+}
+.intro[data-leaving='yes'] .intro__scrim {
+  opacity: 0;
+  transition: opacity 1200ms ease-out;
+}
+/**
+ * v7.2：主页背景改成真实图谱之后，遮罩不能再用"把背景压掉"的思路——
+ * 那样太阳会变成一块灰盘。现在只压四周、中心留出可见的场景，
+ * 标题靠字号和字距站住，而不是靠把背景涂黑。
+ */
+.intro__scrim {
+  background:
+    /* 左亮右暗：左侧留给真太阳，右侧压暗以托住标题与正文 */
+    linear-gradient(90deg, rgba(3, 4, 8, 0.08) 0%, rgba(3, 4, 8, 0.34) 38%, rgba(2, 3, 6, 0.7) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.34) 0%, rgba(0, 0, 0, 0) 38%, rgba(0, 0, 0, 0.62) 100%);
+}
+/**
+ * v8：落地页背景是俯视太阳系，太阳正好在画面中心。
+ * 文案整体上移，避免正文压在日面上；用 margin 而不是 transform，
+ * 否则会和退场动画的 transform 互相覆盖。
+ */
+.intro__inner {
+  margin-top: -13vh;
+}
+
+/* ==========================================================================
+   v9 §20 / §21：主页没有扫描线，背景轻微高斯模糊，进入时恢复清晰
+
+   扫描线（.intro__scan）整体删除——未来复古主义靠排版、圆形仪器、
+   数据排版与负空间表达，不靠 CRT 特效。
+
+   模糊加在 canvas 层上：主页把整个太阳系虚化 2.5px，标题与文字保持锐利；
+   点"进入图谱"时随 2.2s 的镜头推进一起淡回清晰（1.4s 过渡）。
+   用 data-mode 驱动，所以不需要额外的 JS 状态。
+   ========================================================================== */
+.intro__scan {
+  display: none;
+}
+.canvas-layer {
+  transition: filter 1400ms cubic-bezier(0.33, 0, 0.2, 1);
+  /* 只在主页用模糊；进入图谱后这一层完全不带 filter，避免每帧重算 */
+}
+.atlas[data-mode='INTRO'] .canvas-layer {
+  filter: blur(2px);
+  will-change: filter;
+}
+.atlas[data-mode='ENTERING'] .canvas-layer,
+.atlas[data-mode='ATLAS'] .canvas-layer {
+  filter: blur(0);
+}
+@keyframes intro-status {
+  0%,
+  100% {
+    opacity: 0.1;
+  }
+  45% {
+    opacity: 0.42;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .intro__scan,
+  .intro__status li,
+  .onboard__hand {
+    animation: none;
+  }
+}

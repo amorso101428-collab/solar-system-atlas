@@ -1,0 +1,329 @@
+/* ==========================================================================
+   v8.1：音乐厅（专门的音乐播放界面）
+
+   沿用启动页那套语言：细线、等宽字、单一暖色强调；
+   左列曲目表、右列当前曲目与播放源。
+   ========================================================================== */
+
+.hall {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 22px;
+  padding: 42px 56px 48px;
+  background:
+    radial-gradient(80% 60% at 26% 18%, rgba(22, 22, 30, 0.86) 0%, rgba(5, 5, 9, 0.96) 62%, #040407 100%);
+  backdrop-filter: blur(10px);
+  color: var(--ink-dim, #8b877f);
+  font-family: var(--mono, ui-monospace, monospace);
+  overflow: hidden;
+  animation: hall-in 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes hall-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.hall__frame {
+  position: absolute;
+  inset: 20px;
+  border: 1px solid rgba(120, 116, 108, 0.16);
+  pointer-events: none;
+}
+
+.hall__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+.hall__kicker {
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(214, 176, 132, 0.9);
+}
+.hall__kicker--gap {
+  margin-top: 16px;
+}
+.hall__head h2 {
+  margin: 8px 0 6px;
+  font-family: var(--sans, system-ui, sans-serif);
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: 0.08em;
+  color: var(--ink, #e8e4dc);
+}
+.hall__head p {
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  color: rgba(150, 146, 138, 0.85);
+}
+.hall__head a {
+  color: rgba(214, 176, 132, 0.9);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(214, 176, 132, 0.35);
+}
+.hall__close {
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid rgba(120, 116, 108, 0.3);
+  color: var(--ink-dim, #8b877f);
+  font: 10px/1 var(--mono, monospace);
+  letter-spacing: 0.2em;
+  cursor: pointer;
+}
+.hall__close:hover {
+  border-color: rgba(200, 190, 175, 0.55);
+  color: var(--ink, #e8e4dc);
+}
+
+.hall__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 40px;
+  min-height: 0;
+}
+
+/* ---------------- 曲目表 ---------------- */
+.hall__tracks {
+  margin: 0;
+  padding: 0 12px 0 0;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(120, 116, 108, 0.4) transparent;
+}
+.hall__track {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto 62px;
+  align-items: baseline;
+  gap: 14px;
+  width: 100%;
+  padding: 11px 10px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(120, 116, 108, 0.14);
+  color: rgba(168, 164, 156, 0.9);
+  text-align: left;
+  cursor: pointer;
+  transition: background 180ms ease-out, color 180ms ease-out;
+}
+.hall__track:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink, #e8e4dc);
+}
+.hall__track b {
+  font-weight: 400;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: rgba(130, 126, 118, 0.85);
+}
+.hall__title {
+  font-family: var(--sans, system-ui, sans-serif);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+.hall__badges,
+.hall__time {
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: rgba(130, 126, 118, 0.8);
+}
+.hall__track[aria-current='true'] {
+  color: var(--ink, #e8e4dc);
+  background: rgba(214, 176, 132, 0.07);
+}
+.hall__track[aria-current='true'] b {
+  color: var(--node, #c58a55);
+}
+.hall__track[aria-current='true'] .hall__badges {
+  color: rgba(214, 176, 132, 0.9);
+}
+.hall__empty {
+  padding: 18px 10px;
+  font-size: 11px;
+  color: rgba(150, 146, 138, 0.7);
+}
+
+/* ---------------- 当前曲目 ---------------- */
+.hall__now {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.hall__now h3 {
+  margin: 10px 0 4px;
+  font-family: var(--sans, system-ui, sans-serif);
+  font-size: 26px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: var(--ink, #e8e4dc);
+}
+.hall__now > p {
+  margin: 0 0 18px;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: rgba(150, 146, 138, 0.85);
+}
+
+.hall__seek input[type='range'],
+.hall__row input[type='range'] {
+  width: 100%;
+  height: 2px;
+  appearance: none;
+  background: rgba(120, 116, 108, 0.35);
+  outline: none;
+}
+.hall__seek input[type='range']::-webkit-slider-thumb,
+.hall__row input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--node, #c58a55);
+}
+.hall__seek-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  color: rgba(150, 146, 138, 0.8);
+}
+
+.hall__controls {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr 1fr;
+  gap: 8px;
+  margin: 18px 0 16px;
+}
+.hall__controls button {
+  padding: 10px 8px;
+  background: transparent;
+  border: 1px solid rgba(120, 116, 108, 0.3);
+  color: var(--ink-dim, #8b877f);
+  font: 10px/1.3 var(--mono, monospace);
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: border-color 180ms ease-out, color 180ms ease-out;
+}
+.hall__controls button:hover,
+.hall__controls button[aria-pressed='true'] {
+  border-color: rgba(214, 176, 132, 0.55);
+  color: var(--ink, #e8e4dc);
+}
+.hall__play {
+  border-color: rgba(214, 176, 132, 0.45) !important;
+  color: var(--ink, #e8e4dc) !important;
+}
+
+.hall__row {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(150, 146, 138, 0.85);
+}
+.hall__row em {
+  font-style: normal;
+  font-size: 9.5px;
+  color: rgba(150, 146, 138, 0.75);
+}
+.hall__row input[type='file'] {
+  font: 10px/1.4 var(--mono, monospace);
+  color: rgba(150, 146, 138, 0.85);
+}
+.hall__urlinput {
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(120, 116, 108, 0.3);
+  color: var(--ink, #e8e4dc);
+  font: 10px/1.4 var(--mono, monospace);
+  letter-spacing: 0.04em;
+  outline: none;
+}
+.hall__urlinput:focus {
+  border-color: rgba(214, 176, 132, 0.55);
+}
+.hall__mini {
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(120, 116, 108, 0.3);
+  color: var(--ink-dim, #8b877f);
+  font: 10px/1 var(--mono, monospace);
+  letter-spacing: 0.14em;
+  cursor: pointer;
+}
+.hall__mini:hover {
+  border-color: rgba(214, 176, 132, 0.55);
+  color: var(--ink, #e8e4dc);
+}
+
+.hall__sources {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 14px;
+}
+.hall__sources button {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(120, 116, 108, 0.3);
+  color: var(--ink-dim, #8b877f);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 180ms ease-out, background 180ms ease-out;
+}
+.hall__sources button b {
+  font: 500 11px/1 var(--mono, monospace);
+  letter-spacing: 0.16em;
+  color: var(--ink, #e8e4dc);
+}
+.hall__sources button em {
+  font-style: normal;
+  font-size: 9px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  color: rgba(150, 146, 138, 0.8);
+}
+.hall__sources button:hover {
+  border-color: rgba(200, 190, 175, 0.5);
+}
+.hall__sources button[aria-pressed='true'] {
+  border-color: rgba(214, 176, 132, 0.6);
+  background: rgba(214, 176, 132, 0.07);
+}
+
+.hall__note {
+  margin: 14px 0 0;
+  font-size: 9.5px;
+  line-height: 1.85;
+  letter-spacing: 0.06em;
+  color: rgba(140, 136, 128, 0.8);
+}
+.hall__note b {
+  color: rgba(214, 176, 132, 0.9);
+  font-weight: 500;
+}
+
+@media (max-width: 1200px) {
+  .hall {
+    padding: 28px 24px 32px;
+  }
+  .hall__body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+}

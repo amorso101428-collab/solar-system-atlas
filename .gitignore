@@ -1,0 +1,7 @@
+node_modules
+dist
+.vite
+*.local
+
+# 自检截图：每次跑工具都会重新生成，属于产物不是源码
+tools/shots/
