@@ -2,6 +2,32 @@
 
 站点是**纯静态**产物（`npm run build` → `dist/`），没有服务端、没有密钥。
 
+## 版本控制与改动流程（v9.4 起）
+
+这个目录是 git 仓库（`main` 分支），**源码的唯一真源在本地**，Cloudflare 上只有构建产物。
+
+```
+改代码 → npm run build → (有风险时先发预览) → npm run deploy:pages → 线上复验
+```
+
+常用命令：
+
+```powershell
+git status                     # 看改了什么
+git log --oneline              # 看历史提交
+git diff                       # 看未提交的改动
+git restore <文件>             # 丢弃某个文件的改动（回到上次提交）
+git revert <commit>            # 安全地撤销某次提交
+```
+
+出问题时的两道保险：
+
+1. **源码级**：`git restore .` 回到上次提交，或 `git revert` 撤掉某次改动
+2. **部署级**：Cloudflare 保留全部部署记录，可以把任意历史版本重新提升为正式版
+
+`tools/shots/` 是自检截图目录，已加入 `.gitignore`（随时可重新生成，不进版本库）。
+`public/` 里约 30 MB 的贴图是**源素材**，必须进版本库，否则检出后构建不出完整站点。
+
 ## 0. 当前状态（2026-09-21）
 
 | 项目 | 值 |
