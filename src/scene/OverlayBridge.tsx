@@ -168,6 +168,8 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
     const { hideArtificial, hideAllOrbits } = useAtlasStore.getState()
     /** V1 §28：总览里的手机只留"主视觉对象"，聚焦某个系统时才放开第二档 */
     const atlasOverview = useAtlasStore.getState().focusKind === 'ATLAS'
+    /** 触屏布局（手机 / 平板）：标签排布更严；桌面保持 V1 原样 */
+    const touchLayout = getLayoutMode() !== 'desktop'
     const artificialHidden = hideArtificial || hideAllOrbits
     // 自然卫星被隐藏时，它们的标签与命中区一起退场（v6 §13）
     const moonsHidden = useAtlasStore.getState().hideMoons
@@ -222,21 +224,42 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
         ? -Math.max(20, screenRadius * 0.55)
         : Math.max(26, screenRadius * 0.75) + (screenRadius > 40 ? 30 : 0)
       let offsetY = baseOffsetY
+      /**
+       * 触屏设备的错位参数更宽一档：手机上行星挨得近，
+       * 用桌面的 118px 判定会放行一对实际会叠字的名字
+       * （实测"JUPITER × URANUS"）。桌面数值保持 V1 不变。
+       */
+      const planetGapX = touchLayout ? 170 : 118
+      const planetGapY = touchLayout ? 26 : 20
+      const planetStepY = touchLayout ? 30 : 26
       for (let attempt = 1; attempt <= 4; attempt++) {
         const collides = planetLabels.some(
-          (used) => Math.abs(used.x - x) < 118 && Math.abs(used.dy - offsetY) < 20
+          (used) =>
+            Math.abs(used.x - x) < planetGapX && Math.abs(used.dy - offsetY) < planetGapY
         )
         if (!collides) break
-        offsetY = baseOffsetY + (up ? -1 : 1) * attempt * 26
+        offsetY = baseOffsetY + (up ? -1 : 1) * attempt * planetStepY
       }
       planetLabels.push({ x, dy: offsetY })
+      /**
+       * 真机反馈：手机竖屏里水星和木星的名字会压在一起。
+       * 上面的错位循环最多重试 4 次，实在放不下时：
+       * 桌面上画面宽，不会走到这里；手机上就**宁可少一个名字**，
+       * 也不要两个字叠在一起（点击命中区照常保留，放大一点就又有名字）。
+       */
+      const crowded =
+        touchLayout &&
+        planetLabels.slice(0, -1).some(
+          (used) =>
+            Math.abs(used.x - x) < planetGapX && Math.abs(used.dy - offsetY) < planetGapY
+        )
       layer.update(
         `planet:${anchor.planet.id}`,
         x,
         y,
         offsetX,
         offsetY,
-        introVisible && onScreen ? 0.92 * uiPenalty(x, y) : 0,
+        introVisible && onScreen && !crowded ? 0.92 * uiPenalty(x, y) : 0,
         { flip: x > size.width - 220 }
       )
       if (onScreen && introVisible) {
@@ -267,7 +290,12 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
      * 桌面恒为 1，标签排布与 V1 逐字相同。
      */
     const labelDensity = adaptiveQuality.settings.labelDensity
-    const gapScale = (mobileLod ? 1.35 : 1) * (2 - Math.min(1, labelDensity))
+    /**
+     * 真机反馈"标签糊成一片"：手机总览上标签间距再放宽，
+     * 并**按 LOD 增益同步放大**——增益让更多物体进入可见范围，
+     * 间距必须跟着放大才不会又挤回一团。桌面 gapScale 仍是 1。
+     */
+    const gapScale = (mobileLod ? 1.55 : 1) * (2 - Math.min(1, labelDensity))
     const moonOccupied: Array<{ x: number; y: number; importance: number }> = []
     const orderedMoons = [...world.layout.moons].sort((a, b) => b.def.radius - a.def.radius)
     for (const moon of orderedMoons) {
@@ -452,19 +480,34 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
         targets.push({ id: key.replace('belt:', ''), kind: 'region', x, y, radius: pickRadius })
       }
     }
-    regionLabel('belt:asteroid', BELT_RANGE.outer * 0.86, Math.PI * 0.86, 0.6, 34)
+    /**
+     * 真机反馈"标签糊成一片"：手机上三圈大尺度结构**互相叠在画面同一侧**，
+     * 总览里只留小行星带（它是内太阳系的一部分），柯伊伯带与奥尔特云
+     * 在聚焦 / 缩放到远处时才出现。桌面不受影响（mobileLod 恒为 false）。
+     */
+    regionLabel(
+      'belt:asteroid',
+      BELT_RANGE.outer * 0.86,
+      Math.PI * 0.86,
+      mobileLod ? 0.45 : 0.6,
+      34
+    )
     regionLabel(
       'belt:kuiper',
       KUIPER_RANGE.outer * 0.86,
       Math.PI * 0.86,
-      THREE.MathUtils.clamp((viewHeight - 92) / 90, 0, 1) * 0.55,
+      mobileLod
+        ? 0
+        : THREE.MathUtils.clamp((viewHeight - 92) / 90, 0, 1) * 0.55,
       34
     )
     regionLabel(
       'belt:oort',
       OORT_RANGE.inner * 0.86,
       Math.PI * 0.86,
-      THREE.MathUtils.clamp((viewHeight - 140) / 110, 0, 1) * 0.5,
+      mobileLod
+        ? 0
+        : THREE.MathUtils.clamp((viewHeight - 140) / 110, 0, 1) * 0.5,
       34
     )
 
@@ -509,10 +552,24 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
         const { x, y, visible } = project(position)
         const onScreen =
           visible && x > -140 && x < size.width + 140 && y > -90 && y < size.height + 90
-        layer.update(`comet:${comet.id}`, x, y, 20, 16, onScreen ? 0.68 * uiPenalty(x, y) : 0, {
-          flip: x > size.width - 260,
-          hovered: hoveredId === comet.id,
-        })
+        /**
+         * 手机总览里四颗彗星的名字会和行星标签抢位置（真机反馈），
+         * 只在聚焦它们、或被选中/悬停时出名字；彗核标记本身始终保留。
+         */
+        const cometLabelVisible =
+          !mobileLod || !atlasOverview || hoveredId === comet.id || selectedObjectId === comet.id
+        layer.update(
+          `comet:${comet.id}`,
+          x,
+          y,
+          20,
+          16,
+          onScreen && cometLabelVisible ? 0.68 * uiPenalty(x, y) : 0,
+          {
+            flip: x > size.width - 260,
+            hovered: hoveredId === comet.id,
+          }
+        )
         /**
          * v7 §12：不再画尾迹线。越靠近太阳越活跃，只体现为彗核标记略大一点。
          */

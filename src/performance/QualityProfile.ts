@@ -219,6 +219,14 @@ export function qualityDpr(level: QualityLevel): number {
   const layoutCap = maxDprFor(getLayoutMode())
   const device = deviceClassOf(getLayoutMode())
   const settings = settingsForLevel(level)
-  const hardCap = device === 'desktop' ? layoutCap : layoutCap
-  return Math.min(hardCap, (window.devicePixelRatio || 1) * settings.dprScale)
+  const raw = (window.devicePixelRatio || 1) * settings.dprScale
+  /**
+   * 真机反馈"贴图很糊"：阶梯最后两步会把渲染分辨率压到 1.0 以下
+   * （手机上限 1.35 × 0.7 = 0.95），也就是"一个 CSS 像素还分不到一个真实像素"，
+   * 整幅画面都会发虚。所以移动端给一个 **1.0 的地板**：
+   * 降级优先动其他杠杆，DPR 只在上限与地板之间调。
+   * 桌面不参与自适应，这一路不会执行。
+   */
+  const floor = device === 'desktop' ? 0 : 1
+  return Math.min(layoutCap, Math.max(floor, raw))
 }

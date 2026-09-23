@@ -30,14 +30,19 @@ export const RENDER_PROFILES: Record<DeviceClass, RenderProfile> = {
   tablet: {
     device: 'tablet',
     maxDpr: 1.6,
-    starScale: 0.7,
+    /**
+     * 真机反馈"背景像一片噪点"：星点密度要按**屏幕面积**对齐桌面的观感。
+     * 桌面 13300 颗铺在 1574×760 上，约每 90px² 一颗；
+     * 平板 0.55 / 手机 0.3 之后，两边的每像素密度与桌面基本一致。
+     */
+    starScale: 0.55,
     bloomScale: 1,
     heavyEffects: false,
   },
   mobile: {
     device: 'mobile',
     maxDpr: 1.35,
-    starScale: 0.5,
+    starScale: 0.3,
     bloomScale: 1,
     heavyEffects: false,
   },

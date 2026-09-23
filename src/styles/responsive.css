@@ -100,6 +100,29 @@ html[data-keyboard='open'] .atlas[data-device='mobile'] .searchpanel {
   display: none !important;
 }
 
+/**
+ * 遥测 HUD 在触屏设备上隐藏（真机反馈"右上角 UI 重叠"）。
+ *
+ * 它是开发用的运行状态面板（FPS / 帧时 / VRAM…），桌面端在顶栏上方单独占位、
+ * 一直相安无事；但 iPad 上顶栏为了省空间上移了 8px，两者就压在一起，
+ * 而且触屏用户根本读不到它。数据没有丢：`?debug=1` 下
+ * `window.__atlasPerf()` / `__atlasQuality()` 仍然是完整的。
+ */
+.atlas[data-device='tablet'] .telemetry,
+.atlas[data-device='mobile'] .telemetry {
+  display: none;
+}
+
+/**
+ * 引用长廊（天文学思想长廊）在竖屏 / 手机上会和品牌标题压在一起
+ * （真机 iPad 竖屏截图里"145 收录对象"和它叠字）。
+ * 竖屏与手机隐藏，横屏平板保留（那里有横向空间）。
+ */
+.atlas[data-device='mobile'] .quote-rail,
+.atlas[data-layout='tablet-portrait'] .quote-rail {
+  display: none;
+}
+
 /* ---------------------------------------------------------------------------
    2. 排版（§29）
    --------------------------------------------------------------------------- */
@@ -135,14 +158,13 @@ html[data-keyboard='open'] .atlas[data-device='mobile'] .searchpanel {
    --------------------------------------------------------------------------- */
 
 .atlas[data-layout='tablet-landscape'] {
-  --panel-w: clamp(320px, 37vw, 460px);
-}
-
-/* © 桌面那套 @media (max-width: 1240px) 给面板写死了 min(520px, 46vw)，
-   变量在这里盖不过它——所以 iPad 横屏的面板宽度必须显式声明（§04：34~40%）。 */
-.atlas[data-layout='tablet-landscape'] .archive,
-.atlas[data-layout='tablet-landscape'] .catalogpanel {
-  width: clamp(340px, 38vw, 470px);
+  /**
+   * 面板宽度**只**由这一个变量决定（§04：34~40%）。
+   * 真机反馈"时间轴伸到档案底下"就是因为变量和实际宽度各写一套：
+   * 时间轴的 right 用变量算，面板却另写了一个 width。
+   * 现在共用同一个值，两处永远对得上。
+   */
+  --panel-w: clamp(340px, 38vw, 470px);
 }
 
 .atlas[data-device='tablet'] .topbar {

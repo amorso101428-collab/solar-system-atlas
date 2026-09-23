@@ -36,7 +36,8 @@ export function MobileSheet() {
   const panelOpen = catalogPanelOpen || focusKind !== 'ATLAS'
 
   useEffect(() => {
-    if (device === 'desktop' || !panelOpen) return
+    // 抽屉物理只服务手机：iPad 竖屏用的是上下分区 + 面板自身滚动
+    if (device !== 'mobile' || !panelOpen) return
     const element = document.querySelector('.archive, .catalogpanel') as HTMLElement | null
     if (!element) return
 

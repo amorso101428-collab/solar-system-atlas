@@ -1,3 +1,31 @@
+import { deviceClassOf, getLayoutMode } from '../responsive/device'
+
+/**
+ * LOD 增益（V1.1 真机修复）。
+ *
+ * satelliteVisibility / minorSatelliteVisibility 的门限（24~96px）是**桌面
+ * 1600×900 上调出来的**：那里可见高度约 114 单位、画布高 760px，
+ * 于是"木星系统盘 ≈ 41px"刚好落在门限内，卫星同心圆会淡淡地浮出来。
+ *
+ * 换成竖屏手机 / iPad，同一张图谱的可见高度变成 178~393 单位
+ * （因为侧视图按宽度装下同一段横向跨度），而画布反而更矮——
+ * 木星系统盘只剩 13~21px，全部掉到门限以下。
+ * 结果就是真机反馈的"轨道 UI 完全看不见"：轨道线、卫星点、标签一起消失。
+ *
+ * 这里把 LOD 输入乘一个设备增益，把它**归一到桌面的观感**：
+ * 同一个取景下，手机 / iPad 该看到的轨道环，和桌面看到的一样多。
+ * 桌面增益恒为 1（数值与 V1 逐位相同），所以桌面零变化。
+ */
+const LOD_GAIN: Record<string, number> = {
+  desktop: 1,
+  tablet: 2,
+  mobile: 3.2,
+}
+
+export function lodGain(): number {
+  return LOD_GAIN[deviceClassOf(getLayoutMode())] ?? 1
+}
+
 /**
  * 场景揭示度（v7.2）。
  *
@@ -46,13 +74,15 @@ export function damp(current: number, target: number, lambda: number, delta: num
  * 推近的过程因此是一次连续浮现。
  */
 export function satelliteVisibility(diskScreen: number): number {
-  const t = Math.min(1, Math.max(0, (diskScreen - 24) / 72))
+  const value = diskScreen * lodGain()
+  const t = Math.min(1, Math.max(0, (value - 24) / 72))
   return t * t * (3 - 2 * t)
 }
 
 /** 更晚才出现的"小卫星 / 人造卫星密集层"：比整体可见度再晚一档 */
 export function minorSatelliteVisibility(diskScreen: number): number {
-  const t = Math.min(1, Math.max(0, (diskScreen - 58) / 60))
+  const value = diskScreen * lodGain()
+  const t = Math.min(1, Math.max(0, (value - 58) / 60))
   return t * t * (3 - 2 * t)
 }
 

@@ -13,6 +13,17 @@ import { getWorld } from '../utils/world'
 import { smoothYear, worldNow } from '../utils/clock'
 import { SUN_RADIUS } from '../utils/layout'
 import { axisQuaternion, daysSinceJ2000, spinAngle, tidalLockSpin } from '../astronomy/orientation'
+import { isTouchLayout, getLayoutMode } from '../responsive/device'
+
+/** 触屏设备上要给顶栏 + 返回键留出的上边界（桌面为 0） */
+function usesTopInset(): boolean {
+  return isTouchLayout(getLayoutMode())
+}
+
+/** 手机屏上全息标注只出 Top 3（§28 的 progressive disclosure） */
+function isPhoneLayout(): boolean {
+  return getLayoutMode() === 'mobile-portrait' || getLayoutMode() === 'mobile-landscape'
+}
 
 /**
  * 行星表面全息分析层（v8 §23–§37）。
@@ -97,8 +108,17 @@ export function HoloBridge() {
     const state = useAtlasStore.getState()
     const bodyId =
       state.focusKind === 'PLANET' || state.focusKind === 'MOON' ? (state.focusId ?? '') : ''
-    const features = bodyId ? (SURFACE_FEATURES[bodyId] ?? []) : []
-    const layers = bodyId ? (BODY_LAYERS_FULL[bodyId] ?? []) : []
+    /**
+     * 真机反馈：手机屏（390px 宽）上把十几条全息标注全铺出来，
+     * 左边的地貌带、右边的层结尺、顶上的抬头互相压字，什么都读不清。
+     * 按方案书 §28 的 spatial progressive disclosure：
+     * 手机上只出 Top 3~5 条——地貌留 3 条、层结留 3 条；放大 / 聚焦看的是
+     * 球体本身，完整说明在下方档案里（那里一条不少）。
+     * 桌面与 iPad 不受影响（仍是全量）。
+     */
+    const holoLimit = isPhoneLayout() ? 3 : Number.POSITIVE_INFINITY
+    const features = bodyId ? (SURFACE_FEATURES[bodyId] ?? []).slice(0, holoLimit) : []
+    const layers = bodyId ? (BODY_LAYERS_FULL[bodyId] ?? []).slice(0, holoLimit) : []
 
     const hideAll = () => {
       nodes.current.forEach((node) => (node.root.style.opacity = '0'))
@@ -185,7 +205,12 @@ export function HoloBridge() {
       const visible = facing > 0.02 ? Math.min(1, (facing - 0.02) / 0.3) : 0
 
       projected.copy(point).project(camera)
-      const x = (projected.x * 0.5 + 0.5) * size.width
+      /**
+       * 真机反馈：手机上右边的标签会伸到屏幕外（"AMALTHEA" 只剩半个字）。
+       * 触屏设备把标签的落点夹在可视区内，引线仍然从球面锚点画出去。
+       */
+      const rawX = (projected.x * 0.5 + 0.5) * size.width
+      const x = usesTopInset() ? Math.min(Math.max(rawX, 12), size.width - 154) : rawX
       const y = (-projected.y * 0.5 + 0.5) * size.height
 
       node.root.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
@@ -261,7 +286,15 @@ export function HoloBridge() {
         )
         .join('')
       // 数据尺推到右临边外侧一点，和左侧的地貌标签彻底分开
-      node.style.transform = `translate3d(${(centerX + radiusPx * 1.24).toFixed(1)}px, ${(centerY - layers.length * 12).toFixed(1)}px, 0)`
+      /**
+       * 手机上天体几乎占满宽度，原来的"推到半径外 1.24 倍"会直接跑到屏幕外面
+       * （真机截图里层结尺被右边缘切掉）。触屏设备把它夹回可视区内。
+       */
+      const rulerRawX = centerX + radiusPx * 1.24
+      const rulerX = usesTopInset()
+        ? Math.min(rulerRawX, size.width - 168)
+        : rulerRawX
+      node.style.transform = `translate3d(${Math.max(12, rulerX).toFixed(1)}px, ${(centerY - layers.length * 12).toFixed(1)}px, 0)`
       node.style.opacity = '1'
     } else if (rulerRef.current) {
       rulerRef.current.style.opacity = '0'
@@ -277,8 +310,22 @@ export function HoloBridge() {
     const text = HOLO_CAPTION[bodyId]
     const caption = captionRef.current
     caption.innerHTML = `<b>HOLOGRAPHIC ANALYSIS</b><span>${text?.zh ?? ''} · ${text?.en ?? ''}</span>`
-    caption.style.transform = `translate3d(${Math.max(24, centerX - radiusPx).toFixed(1)}px, ${(centerY - radiusPx * 1.22).toFixed(1)}px, 0)`
-    caption.style.opacity = '1'
+    /**
+     * 真机反馈：手机 / iPad 上这行抬头正好压在顶栏与"返回"按钮上。
+     * 触屏设备给它一个上边界（顶栏 50px + 返回键 36px + 间距），
+     * 天体再大也不会把标题顶到导航里。桌面不设限（topMin = 0）。
+     */
+    const captionTopMin = usesTopInset() ? 96 : 0
+    caption.style.transform =
+      `translate3d(${Math.max(24, centerX - radiusPx).toFixed(1)}px, ` +
+      `${Math.max(captionTopMin, centerY - radiusPx * 1.22).toFixed(1)}px, 0)`
+    /**
+     * 手机上不显示这行抬头：屏宽 390px 时它一定和"太阳系总览"返回键、
+     * 以及球面上方的两条地貌标签撞在一起（真机截图）。
+     * §28 的 progressive disclosure 说的是"少而准"——手机上留 3 条地貌标注，
+     * 抬头信息由下方档案承担。桌面 / iPad 保持原样。
+     */
+    caption.style.opacity = isPhoneLayout() ? '0' : '1'
   })
 
   // 3D 范围圈挂在这个组里；DOM 标签仍然写进 #holo-layer

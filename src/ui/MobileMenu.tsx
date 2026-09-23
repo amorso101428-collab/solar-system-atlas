@@ -68,7 +68,8 @@ export function MobileMenu() {
     })
   }, [device, open, openMobileMenu])
 
-  if (device === 'desktop' || !open) return null
+  // 菜单抽屉只服务手机（iPad 用的是完整顶栏）
+  if (device !== 'mobile' || !open) return null
 
   const close = () => {
     audio.emit('menu.close')

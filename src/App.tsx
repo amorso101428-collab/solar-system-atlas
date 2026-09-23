@@ -78,39 +78,10 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     /**
-     * V1 §06：手机竖屏的默认落点。
-     *
-     * 图示排列（侧视）把八颗行星排成同一条水平线——那在 1600×900 上是一张
-     * 漂亮的工程图，在 0.46 宽高比的手机竖屏上只会被压成中间一条细线。
-     * 所以手机竖屏第一次进站时直接落在"俯视的实时太阳系"上：太阳居中偏上、
-     * 行星绕着它排开，配合底部抽屉，正好是手机能读的构图。
-     *
-     * 只在这个页面**没有**任何深链参数时生效；用户手动切回"侧视排列"也不会被覆盖。
+     * V1.1 复盘：这里曾经把"手机竖屏默认落在俯视实时太阳系"作为落点，
+     * 真机反馈是"打开完全不知道是什么、没有侧视图"——已撤销。
+     * 手机 / 平板 / 桌面现在落在同一个侧视图谱上，只在取景与 LOD 上做设备补偿。
      */
-    const hasDeepLink = [
-      'object',
-      'body',
-      'region',
-      'comet',
-      'position',
-      'hide',
-      'grid',
-      'weather',
-      'catalog',
-      'music',
-      'year',
-    ].some((key) => params.has(key))
-      // ?view=atlas 只是"跳过开场"，它不指定排列方式，所以不影响手机默认落点
-      || (params.has('view') && params.get('view') !== 'atlas')
-    if (!hasDeepLink && layoutMode === 'mobile-portrait') {
-      setPositionPoseImmediate(1)
-      setOrbitPoseImmediate(1)
-      useAtlasStore.setState({
-        positionMode: 'REAL',
-        view: 'ORBIT3D',
-        atlasPose: false,
-      })
-    }
     const objectId = params.get('object')
     const bodyId = params.get('body')
     const view = params.get('view')

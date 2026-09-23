@@ -73,7 +73,14 @@ function atlasShot(width: number, height: number): Shot {
   const minX = -17
   const maxX = ATLAS_OUTER_RADIUS + 20
   const spanX = maxX - minX
-  const visibleHeight = Math.max(spanX / Math.max(aspect, 0.6), 46)
+  /**
+   * 宽高比下限 0.6 是给"横屏偏窄"的窗口用的；手机竖屏只有 0.46，
+   * 一旦按下限算就会出现"宽度不够装下整段跨度"——真机上表现为
+   * 左端的太阳与右端的冥王星被切出画面。下限放到 0.42，
+   * 手机竖屏就用它真实的宽高比取景：整张图谱完整落进屏幕。
+   * 桌面 / 平板的宽高比都远大于下限，数值不受影响。
+   */
+  const visibleHeight = Math.max(spanX / Math.max(aspect, 0.42), 46)
   return {
     target: new THREE.Vector3((minX + maxX) / 2, 0, 0),
     height: visibleHeight,
@@ -103,7 +110,7 @@ const TOP_PITCH = 1.42
 function topShot(width: number, height: number): Shot {
   const aspect = Math.max(width, 1) / Math.max(height, 1)
   const diameter = ATLAS_OUTER_RADIUS * 2 * 1.12
-  const visibleHeight = diameter * Math.max(1, 1 / Math.max(aspect, 0.6))
+  const visibleHeight = diameter * Math.max(1, 1 / Math.max(aspect, 0.42))
   return {
     target: new THREE.Vector3(0, 0, 0),
     height: visibleHeight,
@@ -119,7 +126,7 @@ function topShot(width: number, height: number): Shot {
 function realPositionShot(width: number, height: number): Shot {
   const aspect = Math.max(width, 1) / Math.max(height, 1)
   const diameter = ATLAS_OUTER_RADIUS * 2 * 1.06
-  const visibleHeight = diameter * Math.max(1, 1 / Math.max(aspect, 0.6))
+  const visibleHeight = diameter * Math.max(1, 1 / Math.max(aspect, 0.42))
   /**
    * V1：手机竖屏是 0.46 的宽高比，0.58 的仰角会把整圈轨道压成一条扁椭圆；
    * 这里抬到接近俯视，画面才是一个读得懂的"太阳系圆盘"。
@@ -127,14 +134,12 @@ function realPositionShot(width: number, height: number): Shot {
   const portraitPhone = getLayoutMode() === 'mobile-portrait'
   const pitch = portraitPhone ? 1.12 : 0.58
   return {
-    target: focusTarget(
-      new THREE.Vector3(0, 0, 0),
-      visibleHeight,
-      aspect,
-      SIDE_VIEW_YAW,
-      new THREE.Vector3(),
-      pitch
-    ),
+    /**
+     * **太阳必须在画面正中**（用户反馈：切到实时全览后焦点不在太阳）。
+     * 这里绝不能借用 focusTarget 的"主体靠左"偏移——那是给行星档案用的构图，
+     * 套到"以太阳为中心的整圈轨道"上就是错的。
+     */
+    target: new THREE.Vector3(0, 0, 0),
     height: visibleHeight,
     yaw: SIDE_VIEW_YAW,
     pitch,
@@ -145,10 +150,10 @@ function realPositionShot(width: number, height: number): Shot {
  * 总览构图的分发（V1 §06）。
  *
  * 桌面 / iPad / 手机横屏 —— 侧视信息图，也就是原来的 atlasShot，一字未改。
- * 手机竖屏 —— 侧视那条"一字排开"的行星在 0.46 的宽高比下只能被压成
- * 中间一条细线（行星只剩几个像素）。手机竖屏改用**俯视全景**：
- * 以太阳为中心、按宽度装下最外圈轨道，画面接近一个圆盘，
- * 再配合双指缩放进入内太阳系——这才是手机竖屏真正能读的太阳系。
+ * 手机竖屏 —— 同样是侧视信息图：V1.1 一度把它换成过俯视全景，
+ * 但真机反馈是"打开完全不知道是什么、也没有侧视图"，所以退回侧视图。
+ * 竖屏下轨道 LOD 另有补偿（见 utils/reveal.ts 的 lodGain），
+ * 让行星轨道环在竖屏取景下仍然看得见。
  */
 function atlasBaseShot(width: number, height: number): Shot {
   /**
@@ -156,32 +161,7 @@ function atlasBaseShot(width: number, height: number): Shot {
    * 否则"进场镜头"与"进场之后每帧的取景"会是两张图。
    */
   if (useAtlasStore.getState().positionMode === 'REAL') return realPositionShot(width, height)
-  if (getLayoutMode() !== 'mobile-portrait') return atlasShot(width, height)
-  const aspect = Math.max(width, 1) / Math.max(height, 1)
-  /**
-   * 取景半径：完整图谱（半径 199）在 0.46 的宽高比下会把八颗行星
-   * 全挤进画面中间那一小块；手机上收到木星轨道（88）——
-   * 内太阳系 + 小行星带 + 木星，行星真的看得清，
-   * 外太阳系只要往外捏一下就回来。这是 §23 说的 Semantic LOD 在取景上的对应。
-   */
-  const frameRadius = Math.min(ATLAS_OUTER_RADIUS, 88)
-  const visibleHeight = (frameRadius * 2 * 1.1) / Math.max(aspect, 0.36)
-  const yaw = SIDE_VIEW_YAW
-  const pitch = 1.2
-  return {
-    // 天体整体上抬到上半屏（下面压着 Bottom Sheet）
-    target: focusTarget(
-      new THREE.Vector3(0, 0, 0),
-      visibleHeight,
-      aspect,
-      yaw,
-      new THREE.Vector3(),
-      pitch
-    ),
-    height: visibleHeight,
-    yaw,
-    pitch,
-  }
+  return atlasShot(width, height)
 }
 
 const scratchDir = new THREE.Vector3()
@@ -524,6 +504,16 @@ export function CameraRig() {
   const touchDrag = useRef(false)
   /** 本次触摸是否已经触发过"侧视 → 3D 展开" */
   const touchOrbitArmed = useRef(false)
+  /**
+   * V1.1 修复：手指转过视角之后，**不许**再被"聚焦构图"拉回原角度。
+   *
+   * 真机反馈"聚焦之后没法转动视角"，根因就在这里：
+   * 聚焦状态下每帧都会把 desired.yaw/pitch 强制设回 computeFocusShot 的角度，
+   * 桌面靠 drag.current.moved 把这条盖住（鼠标拖过就一直为 true），
+   * 而触摸路径没有对应的闩锁——于是手指一松开，视角立刻弹回。
+   * 这个闩锁只由触摸手势置位，桌面端恒为 false，桌面行为不变。
+   */
+  const touchManualOrbit = useRef(false)
 
   useEffect(() => {
     home.current = atlasBaseShot(size.width, size.height)
@@ -809,6 +799,7 @@ export function CameraRig() {
       state.setView('ORBIT3D')
       requestOrbitPose(1)
       state.setAtlasPose(false)
+      touchManualOrbit.current = true
     }
 
     const detachGestures = gestureManager.registerCanvas(element, {
@@ -832,7 +823,14 @@ export function CameraRig() {
           return
         }
         transition.current = null
-        desired.current.yaw -= yawDelta
+        /**
+         * 方向必须与桌面右键拖拽完全一致：
+         *   桌面  desired.yaw -= dx * 0.0032
+         *   触摸  desired.yaw += yawDelta，而 yawDelta = -dx * 0.0032
+         * 两者等式相同。V1.1 之前这里写成了 `-=`，于是手指往左拖画面往右走
+         * （真机反馈的"拖动逻辑是反的"）。
+         */
+        desired.current.yaw += yawDelta
         desired.current.pitch = THREE.MathUtils.clamp(
           desired.current.pitch + pitchDelta,
           -1.35,
@@ -899,6 +897,7 @@ export function CameraRig() {
         desired.current = cloneShot(home.current)
         manualOffset.current.set(0, 0, 0)
         manualOrbit.current = false
+        touchManualOrbit.current = false
         /**
          * v8 §9 / §11：两段式。
          *
@@ -925,6 +924,7 @@ export function CameraRig() {
         manualZoom.current = false
         manualOffset.current.set(0, 0, 0)
         manualOrbit.current = false
+        touchManualOrbit.current = false
         const to =
           state.positionMode === 'REAL'
             ? realPositionShot(size.width, size.height)
@@ -951,6 +951,8 @@ export function CameraRig() {
           : null
         if (to) {
           manualOffset.current.set(0, 0, 0)
+          // 换了一个天体 = 重新取景，把"用户自己转过的角度"交还给构图
+          touchManualOrbit.current = false
           flight.current = {
             from: cloneShot(current.current),
             to,
@@ -965,6 +967,7 @@ export function CameraRig() {
         manualOffset.current.set(0, 0, 0)
         manualZoom.current = false
         manualOrbit.current = false
+        touchManualOrbit.current = false
         desired.current = cloneShot(home.current)
         flight.current = {
           from: cloneShot(current.current),
@@ -1101,6 +1104,7 @@ export function CameraRig() {
        * 于是镜头永远停在总览。这里每帧检查一次，发现就补上这次飞行。
        */
       if (following && shot && useAtlasStore.getState().cameraState === 'FLYING_IN') {
+        touchManualOrbit.current = false
         flight.current = {
           from: cloneShot(current.current),
           to: shot,
@@ -1116,6 +1120,7 @@ export function CameraRig() {
         if (
           !drag.current.active &&
           !touchDrag.current &&
+          !touchManualOrbit.current &&
           flight.current === null &&
           !drag.current.moved
         ) {

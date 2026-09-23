@@ -49,6 +49,9 @@ param(
   [string]$Resize = '',
   # 敲一下屏幕（走 Chrome 的手势识别）："x,y" —— 验证 tap 选中/聚焦
   [string]$Tap = '',
+  # 滑动（走 Chrome 的手势识别）："x,y,dx,dy" —— dx/dy 是"内容滚动量"，
+  # 手指方向与之相反（CDP 语义）。用来验证单指旋转 / 抽屉拖动。
+  [string]$Swipe = '',
   # 抓运行时异常：注入采集器 → 重新加载 → 读出前若干条
   [switch]$ErrProbe = $false
 )
@@ -311,6 +314,27 @@ JSON.stringify($selectorsJson.map(function (sel) {
     } | Out-Null
     Wait-Frames -Count 24
     Write-Host ("tap result  camera: {0}" -f (Get-Camera)) -ForegroundColor Yellow
+  }
+
+  if ($Swipe) {
+    # 与 -Tap 同源：走 Chrome 自己的手势识别，比手搓 touch 序列可靠得多
+    $swipeParts = $Swipe.Split(',')
+    $sx = [int]$swipeParts[0]
+    $sy = [int]$swipeParts[1]
+    $sdx = [int]$swipeParts[2]
+    $sdy = [int]$swipeParts[3]
+    Send-Cdp -Method 'Emulation.setTouchEmulationEnabled' -Params @{
+      enabled = $true; maxTouchPoints = 2
+    } | Out-Null
+    $before = Get-Camera
+    Write-Host ("swipe from ({0},{1}) scroll ({2},{3})" -f $sx, $sy, $sdx, $sdy) -ForegroundColor DarkGray
+    Send-Cdp -Method 'Input.synthesizeScrollGesture' -Params @{
+      x = $sx; y = $sy; xDistance = $sdx; yDistance = $sdy
+      gestureSourceType = 'touch'; speed = 700; preventFling = $true
+    } | Out-Null
+    Wait-Frames -Count 30
+    Write-Host ("swipe before: {0}" -f $before) -ForegroundColor DarkGray
+    Write-Host ("swipe after : {0}" -f (Get-Camera)) -ForegroundColor Yellow
   }
 
   if ($Resize) {

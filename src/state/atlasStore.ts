@@ -183,7 +183,7 @@ export const useAtlasStore = create<AtlasState>((set) => ({
   playing: false,
   filterToast: null,
   mobileMenuOpen: false,
-  sheetState: 'collapsed',
+  sheetState: 'half',
   timelineExpanded: false,
 
   enterAtlas: () => set({ mode: 'ENTERING', guideOpen: false }),
@@ -208,7 +208,7 @@ export const useAtlasStore = create<AtlasState>((set) => ({
             guideOpen: false,
             searchOpen: false,
             mobileMenuOpen: false,
-            sheetState: 'collapsed' as SheetState,
+            sheetState: 'half' as SheetState,
             view: 'ORBIT3D',
           }
         : {
@@ -233,7 +233,7 @@ export const useAtlasStore = create<AtlasState>((set) => ({
       guideOpen: false,
       searchOpen: false,
       mobileMenuOpen: false,
-      sheetState: 'collapsed' as SheetState,
+      sheetState: 'half' as SheetState,
       // 一旦推近到某个天体，镜头就在 3D 里工作了：不再退回侧视（方案书 §3）
       view: 'ORBIT3D',
     }),
@@ -249,7 +249,7 @@ export const useAtlasStore = create<AtlasState>((set) => ({
       guideOpen: false,
       searchOpen: false,
       mobileMenuOpen: false,
-      sheetState: 'collapsed' as SheetState,
+      sheetState: 'half' as SheetState,
       view: 'ORBIT3D',
     }),
 
@@ -265,7 +265,7 @@ export const useAtlasStore = create<AtlasState>((set) => ({
       guideOpen: false,
       searchOpen: false,
       mobileMenuOpen: false,
-      sheetState: 'collapsed' as SheetState,
+      sheetState: 'half' as SheetState,
       view: 'ORBIT3D',
     }),
 
@@ -281,7 +281,7 @@ export const useAtlasStore = create<AtlasState>((set) => ({
       guideOpen: false,
       searchOpen: false,
       mobileMenuOpen: false,
-      sheetState: 'collapsed' as SheetState,
+      sheetState: 'half' as SheetState,
       view: 'ORBIT3D',
     }),
 

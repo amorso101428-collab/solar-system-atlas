@@ -27,7 +27,16 @@ export function MobileNav() {
   const openMobileMenu = useAtlasStore((state) => state.openMobileMenu)
   const setSearchOpen = useAtlasStore((state) => state.setSearchOpen)
 
-  if (device === 'desktop') return null
+  /**
+   * V1.1 真机修复：这一层**只给手机**。
+   *
+   * 之前 iPad 也渲染它，于是平板顶部同时出现两套导航：
+   * 平板顶栏（对象 / 实时位置 / 视图 / 中 EN / 目录 / 搜索 …）
+   * 和这条移动条（主页 / 菜单 / EN），两者在右上角直接压字
+   * —— 真机截图里的"右上角 UI 重叠"。
+   * iPad 本来就有完整的顶部导航，底部动作条也不需要。
+   */
+  if (device !== 'mobile') return null
 
   return (
     <>
