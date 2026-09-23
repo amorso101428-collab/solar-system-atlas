@@ -14,6 +14,13 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # @react-three/fiber 9.7 的 peer 要求是 react ">=19 <19.3"。
+      # 在它放宽范围前，升级 React 会让新克隆仓库的 npm install 直接失败。
+      - dependency-name: "react"
+        versions: [">=19.3"]
+      - dependency-name: "react-dom"
+        versions: [">=19.3"]
 
   # GitHub Actions（以后加了 workflow 也能自动跟进）
   - package-ecosystem: "github-actions"
