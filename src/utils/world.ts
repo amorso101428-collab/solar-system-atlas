@@ -1,3 +1,4 @@
+import { missionLivePosition, earthFixedFrame, isLiveOrbitMode } from '../astronomy/liveOrbits'
 import * as THREE from 'three'
 import {
   computeLayout,
@@ -25,6 +26,7 @@ export interface WorldSnapshot {
   systems: Map<SystemId, SystemDisk>
 }
 
+const liveScratch = new THREE.Vector3()
 let cachedT = Number.NaN
 let cachedFrameVersion = -1
 let cachedYear = Number.NaN
@@ -50,6 +52,16 @@ export function getWorld(t: number): WorldSnapshot {
     return cached
   }
   const layout = computeLayout(t, diskFrame, year)
+  const earth = layout.planets.find(p => p.planet.id === 'earth')
+  if (earth && isLiveOrbitMode()) {
+    const frame = earthFixedFrame(year)
+    for (const anchor of layout.objects) {
+      if (anchor.object.system === 'earth' && missionLivePosition(anchor.object.id, liveScratch)) {
+        anchor.position.copy(liveScratch).multiplyScalar(earth.planet.radius).applyQuaternion(frame).add(earth.position)
+      }
+    }
+  }
+
   cached = {
     t,
     frameVersion: diskFrame.version,

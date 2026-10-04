@@ -7,6 +7,8 @@
  *
  * 事实来源以 NASA / JPL / USGS / ESA 的公开资料为准，写在 sources 里。
  */
+import { OBSERVATION_READING } from './knowledge-observation'
+
 export interface KnowledgeSection {
   id: string
   title: { zh: string; en: string }
@@ -34,7 +36,7 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
     id: 'earth',
     headline: { zh: '地球：目前已知唯一存在生命的世界', en: 'EARTH — the only known inhabited world' },
     lead: {
-      zh: '地球是太阳系里第五大行星，也是唯一一颗表面同时存在液态水、板块运动与富氧大气的天体。它的磁场把恒星风挡在几十个地球半径之外，它的臭氧层把紫外线削到生命可承受的水平——这些条件不是巧合，而是四十六亿年演化留下的结果。',
+      zh: '地球是太阳系里第五大行星，也是目前唯一确认存在生命的世界。液态海洋、活跃的岩石圈、大气与生物圈相互作用，共同塑造了我们生活的环境。磁层改变太阳风中带电粒子的运动，大气中的臭氧则吸收大部分有害紫外线；它们各有作用，并不是一层能阻挡所有辐射的屏障。',
       en: 'The largest rocky planet, and the only place where liquid water, plate tectonics and an oxygen-rich atmosphere coexist.',
     },
     sections: [
@@ -42,7 +44,7 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
         id: 'overview',
         title: { zh: '概览', en: 'OVERVIEW' },
         body: {
-          zh: '地球的半径是 6,371 公里，质量 5.972×10²⁴ 公斤，平均密度 5.51 克每立方厘米——是太阳系里密度最大的行星。这个密度意味着它必须有一个以铁镍为主的金属核心，而不能只是岩石堆起来的球。地表 71% 被海洋覆盖，平均水深 3,688 米，总体水量约 13.86 亿立方公里。从太空看最显眼的特征不是大陆，而是那层厚度不到大气总量 1% 却决定性的水汽与云。地球的公转周期是 365.256 天，自转周期 23 小时 56 分 4 秒；自转轴相对轨道面倾斜 23.44°，这个倾角正是四季的成因。',
+          zh: '地球的半径是 6,371 公里，质量 5.972×10²⁴ 公斤，平均密度 5.51 克每立方厘米——是太阳系里密度最大的行星。这个密度意味着它必须有一个以铁镍为主的金属核心，而不能只是岩石堆起来的球。地表 71% 被海洋覆盖，平均水深 3,688 米，总体水量约 13.86 亿立方公里。从太空看最显眼的特征不是大陆，而是分布不均、不断变化的云系。地球的公转周期是 365.256 天，自转周期 23 小时 56 分 4 秒；自转轴相对轨道面法线倾斜约 23.44°，这个倾角正是四季的成因。',
           en: 'Radius 6,371 km, mass 5.972×10²⁴ kg, mean density 5.51 g/cm³ — the densest planet. 71% ocean, 23.44° axial tilt gives the seasons.',
         },
       },
@@ -58,7 +60,7 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
         id: 'atmosphere',
         title: { zh: '大气分层与成分', en: 'ATMOSPHERE' },
         body: {
-          zh: '干空气的体积比是：氮 78.08%、氧 20.95%、氩 0.93%、二氧化碳 0.04%，其余为氖、氦、甲烷、氪等痕量气体。海平面气压 1,013.25 百帕，标高约 8.5 公里——也就是说每升高 8.5 公里气压就下降到约原来的 37%。自下而上分为五层：对流层（0–12 公里，全部天气现象都发生在这里，温度随高度下降）；平流层（12–50 公里，臭氧层集中在 20–30 公里，吸收紫外线使温度回升）；中间层（50–85 公里，流星在这里烧尽，是大气最冷处）；热层（85–600 公里，极光与空间站轨道所在，温度可达 1,500 K 但分子极稀）；散逸层（600 公里以上，逐渐过渡到行星际介质）。',
+          zh: '干空气的体积比是：氮 78.08%、氧 20.95%、氩 0.93%、二氧化碳 0.04%，其余为氖、氦、甲烷、氪等痕量气体。海平面气压 1,013.25 百帕，标高约 8.5 公里——也就是说每升高 8.5 公里气压就下降到约原来的 37%。自下而上分为五层：对流层（0–12 公里，绝大多数天气现象发生在这里，温度随高度下降）；平流层（12–50 公里，臭氧层集中在 20–30 公里，吸收紫外线使温度回升）；中间层（50–85 公里，流星在这里烧尽，是大气最冷处）；热层（85–600 公里，极光与空间站轨道所在，温度可达 1,500 K 但分子极稀）；散逸层（600 公里以上，逐渐过渡到行星际介质）。',
           en: 'N₂ 78.08%, O₂ 20.95%, Ar 0.93%, CO₂ 0.04%; pressure 1,013.25 hPa, scale height ~8.5 km; five layers from troposphere to exosphere.',
         },
       },
@@ -91,7 +93,7 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
       { date: '1957-10-04', text: { zh: '斯普特尼克一号入轨，人类进入太空时代', en: 'Sputnik 1 opens the space age' } },
       { date: '1960-04-01', text: { zh: 'TIROS-1 拍下第一张气象卫星云图', en: 'TIROS-1 returns the first weather satellite image' } },
       { date: '1972-07-23', text: { zh: '陆地卫星一号开始系统观测地表', en: 'Landsat 1 begins systematic land observation' } },
-      { date: '1990-11-14', text: { zh: 'ERS-1 用雷达高度计测量海面', en: 'ERS-1 measures sea surface with radar altimetry' } },
+      { date: '1991-07-17', text: { zh: 'ERS-1 发射，搭载成像雷达与雷达高度计', en: 'ERS-1 launches with imaging radar and a radar altimeter' } },
       { date: '1998-11-20', text: { zh: '国际空间站开始组装', en: 'ISS assembly begins' } },
       { date: '2016-12-11', text: { zh: '风云四号 A 星开始静止气象观测', en: 'Fengyun-4A begins geostationary weather watch' } },
       { date: '2021-04-29', text: { zh: '中国天宫空间站开始建造', en: 'Tiangong station construction starts' } },
@@ -123,8 +125,8 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
         id: 'interior',
         title: { zh: '内部结构', en: 'INTERIOR' },
         body: {
-          zh: '月球的地壳平均厚约 35–50 公里，背面比正面更厚；其下是约 1,300 公里的月幔；再往下是一个半径约 240 公里的部分熔融核，以铁为主，可能含少量硫。阿波罗任务留下的地震仪记录到"月震"，其中浅源月震与地球的潮汐应力有关。月球整体积累了明显的化学分层：正面以玄武岩海为主，背面以斜长岩高地为主，这种"两面性"至今仍在被解释。',
-          en: 'Crust 35–50 km (thicker on the far side), mantle ~1,300 km, a partially molten core ~240 km across; shallow moonquakes are linked to tidal stress.',
+          zh: '月球有岩石地壳、地幔和较小的富铁核心，内部细节由地震波、重力与转动测量共同约束，不同模型仍有差异。背面地壳总体比正面更厚，正面的大片玄武岩月海与背面的古老高地形成对照。阿波罗地震仪记录了多种月震：深源月震与地球的潮汐作用有关，部分浅源月震与月球冷却收缩及断层活动有关；陨石撞击和地表受热冷却也会引起震动。月球没有地球式板块构造，并不意味着它完全没有地质活动。',
+          en: 'The Moon has a rocky crust, mantle and small iron-rich core. Deep moonquakes are associated with terrestrial tides; some shallow quakes are linked to cooling, contraction and faults. Impacts and thermal cycling also produce seismic signals.',
         },
       },
       {
@@ -409,7 +411,7 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
       { date: '1995-12-02', text: { zh: 'SOHO 发射，开始不间断日地观测', en: 'SOHO launches' } },
       { date: '2010-02-11', text: { zh: '太阳动力学天文台（SDO）发射', en: 'SDO launches' } },
       { date: '2018-08-12', text: { zh: '帕克太阳探测器发射', en: 'Parker Solar Probe launches' } },
-      { date: '2021-12-14', text: { zh: '帕克首次穿越日冕', en: 'Parker touches the corona' } },
+      { date: '2021-12-14', text: { zh: 'NASA 公布帕克此前首次穿越日冕的观测成果', en: 'NASA announces Parker’s earlier first passage through the corona' } },
     ],
     sources: [
       { title: 'NASA Science — Sun', url: 'https://science.nasa.gov/sun/' },
@@ -571,7 +573,7 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
         id: 'moons',
         title: { zh: '海卫一与环弧', en: 'TRITON AND RING ARCS' },
         body: {
-          zh: '海卫一（Triton）是太阳系唯一大型**逆行**卫星，直径 2,707 公里，很可能是一颗被捕获的柯伊伯带天体。它的表面温度 −235 ℃，却仍有氮气间歇泉喷发，表面年龄很轻。海王星的环包含五条主要细环，其中几条有明显的"亮弧"——这些弧由与海卫一的轨道共振维持，是行星环动力学里非常特殊的案例。',
+          zh: '海卫一（Triton）是太阳系唯一大型**逆行**卫星，直径约 2,707 公里，很可能是一颗被捕获的柯伊伯带天体。旅行者 2 号在极寒的表面发现了喷流与较年轻的地貌。海王星还有暗淡的环和亚当斯环中的局部亮弧；亮弧的维持与附近小卫星伽拉忒亚的引力作用有关，具体约束机制仍是研究问题，不能归因于海卫一。',
           en: 'Triton is the only large retrograde moon, likely a captured Kuiper Belt object, with nitrogen geysers; bright ring arcs are shepherded by resonances.',
         },
       },
@@ -604,10 +606,10 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
       },
       {
         id: 'system',
-        title: { zh: '双矮行星系统', en: 'A DOUBLE DWARF SYSTEM' },
+        title: { zh: '冥王星与冥卫一系统', en: 'THE PLUTO–CHARON SYSTEM' },
         body: {
-          zh: '冥王星与冥卫一（Charon）互相潮汐锁定，围绕共同质心旋转——质心位于两颗天体之外，所以它们更像一对双星，而不是"行星+卫星"。冥卫一直径 1,212 公里，接近冥王星的一半，另有三颗小卫星（尼克斯、许德拉、刻耳柏洛斯）在更外层。',
-          en: 'Pluto and Charon are mutually tidally locked around a barycentre outside Pluto; three smaller moons orbit beyond.',
+          zh: '冥王星与冥卫一（Charon）互相潮汐锁定，始终以同一面朝向彼此，围绕位于冥王星之外的共同质心运动。冥卫一直径约 1,212 公里，接近冥王星的一半。这个特殊的质量比例使它们常被形容为双天体系统，但冥卫一仍被列为冥王星的卫星。整个系统共有五颗已知卫星：冥卫一，以及更小的尼克斯、许德拉、刻耳柏洛斯和斯提克斯。',
+          en: 'Pluto and Charon are mutually tidally locked around a barycentre outside Pluto. Charon is classified as a moon. The system has five known moons: Charon, Nix, Hydra, Kerberos and Styx.',
         },
       },
     ],
@@ -621,4 +623,13 @@ export const KNOWLEDGE: Record<string, KnowledgeArticle> = {
       { title: 'NASA New Horizons mission', url: 'https://science.nasa.gov/mission/new-horizons/' },
     ],
   },
+}
+
+for (const [id, reading] of Object.entries(OBSERVATION_READING)) {
+  const article = KNOWLEDGE[id]
+  if (!article) continue
+  article.sections.push(...reading.sections)
+  for (const source of reading.sources) {
+    if (!article.sources.some(existing => existing.url === source.url)) article.sources.push(source)
+  }
 }

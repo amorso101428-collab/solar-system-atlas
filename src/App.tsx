@@ -1,3 +1,6 @@
+import { UIParticles } from './ui/UIParticles'
+import { ExperienceShortcuts } from './ui/FlightDeck'
+import { useExperience } from './state/experience'
 import { useEffect, useMemo, useState } from 'react'
 import { AtlasCanvas } from './scene/AtlasCanvas'
 import { Intro } from './ui/Intro'
@@ -68,7 +71,7 @@ export default function App() {
    * 背景音乐（v9 §3）：进站立即尝试播放；被浏览器策略拦下时，
    * 第一次 pointerdown / keydown 会自动续上，不需要用户去找播放按钮。
    *
-   * v9 起全站不再有任何交互音效，所以这里不需要解锁 AudioContext。
+   * 交互音效由首次用户手势解锁，与背景音乐独立开关。
    */
   useEffect(() => {
     audio.autoStart()
@@ -198,6 +201,8 @@ export default function App() {
     }
   }, [])
 
+  const annotations = useExperience(s => s.annotations)
+  const immersive = useExperience(s => s.immersive)
   const atlasVisible = mode !== 'INTRO'
   const focused = focusKind !== 'ATLAS'
   const view = useAtlasStore((state) => state.view)
@@ -231,6 +236,8 @@ export default function App() {
     <div
       className="atlas"
       data-mode={mode}
+      data-immersive={immersive}
+      data-annotations={annotations}
       data-archive={archiveOpen ? 'open' : 'closed'}
       data-focus={focusKind.toLowerCase()}
       data-back={hasBack ? 'yes' : 'no'}
@@ -250,6 +257,7 @@ export default function App() {
       {/* v8 §27：行星表面全息标注层（贴在球面上的科学标签） */}
       <div id="holo-layer" className="holo-layer" />
       <Cursor />
+      <UIParticles />
       <div className="vignette" />
       <div className="grain" />
 
@@ -269,10 +277,11 @@ export default function App() {
 
         <BackButton />
         <TopBar />
+        <ExperienceShortcuts />
         <Onboarding />
         <Timeline />
         {/* v9 §23：右上角的系统详情（在原工具区上方，不改动原布局） */}
-        <SystemTelemetry />
+        {new URLSearchParams(window.location.search).get('debug') === '1' && <SystemTelemetry />}
         {/* v9 §8：作者 / 版权面板 */}
         <CreatorPanel />
         {/* v9 §7：图谱左下角的"天文学思想长廊" */}

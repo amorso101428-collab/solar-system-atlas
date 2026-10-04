@@ -1,8 +1,11 @@
+import { useOrbitStatus } from '../astronomy/liveOrbits'
+import { FlightDeck } from './FlightDeck'
 import { useMemo, useState } from 'react'
 import { OBJECTS, OBJECT_BY_ID } from '../data/objects'
 import { PLANETS } from '../data/planets'
+import { WORLDS } from '../data/worlds'
 import { COMETS } from '../data/comets'
-import { CATEGORY_FILTERS } from '../data/filters'
+import { CATEGORY_FILTERS, categoryLabel } from '../data/filters'
 import { useAtlasStore, type SceneArrangement } from '../state/atlasStore'
 import { useT, usePick } from '../i18n'
 import { getCatalogStats } from '../scene/EarthCatalog'
@@ -12,21 +15,14 @@ import { useDeviceClass } from '../responsive/useDevice'
 const ARRANGEMENTS: SceneArrangement[] = ['SIDE', 'ORBIT3D', 'REAL']
 
 /** 对象菜单按语义分组（v7 §16）：先任务类别，再任务机构 */
-const FILTER_GROUPS: Array<{ label: string; ids: string[] }> = [
-  {
-    label: 'group.category',
-    ids: ['ALL', 'EXPLORATION', 'OBSERVATION', 'TELECOM', 'NAVIGATION', 'SPACE STATION', 'STARLINK'],
-  },
-  // v8 §47：机构一级里要有"中国航天"这一栏，而不是塞进"其他"
-  { label: 'group.agency', ids: ['NASA', 'ESA', 'CHINA_SPACE', 'OTHER'] },
-]
+const FILTER_GROUPS = [{ label: 'group.category', ids: CATEGORY_FILTERS.map(f => f.id) }]
 
 /**
  * 顶部导航（v7 §2 / §15 / §16 / §17）。
  *
  * 固定三栏，互不影响：
  *   左上  主页
- *   中上  场景控制 —— 对象 · 实时位置 · 视图
+ *   中上  场景控制 —— 对象 · 天体 · 实时位置 · 视图
  *   右上  工具 —— 中/EN · 在轨目录 · 搜索 · 指南 · 音效 · 背景音乐
  *
  * 详情面板 / 目录面板都从导航底下开始（top: 74px），所以任何状态下
@@ -47,6 +43,7 @@ export function TopBar() {
   const view = useAtlasStore((state) => state.view)
   const positionMode = useAtlasStore((state) => state.positionMode)
   const setSceneArrangement = useAtlasStore((state) => state.setSceneArrangement)
+  const schematicView = useAtlasStore((state) => state.schematicView)
   const catalogVisible = useAtlasStore((state) => state.catalogVisible)
   const catalogPanelOpen = useAtlasStore((state) => state.catalogPanelOpen)
   const openCatalogPanel = useAtlasStore((state) => state.openCatalogPanel)
@@ -60,6 +57,8 @@ export function TopBar() {
   const focusMoon = useAtlasStore((state) => state.focusMoon)
   const focusComet = useAtlasStore((state) => state.focusComet)
   const focusRegion = useAtlasStore((state) => state.focusRegion)
+  const focusKind = useAtlasStore((state) => state.focusKind)
+  const focusId = useAtlasStore((state) => state.focusId)
   const [query, setQuery] = useState('')
   /**
    * V1：搜索面板的开关搬到 store 里（原来只存在于 TopBar 的局部 state）。
@@ -69,6 +68,7 @@ export function TopBar() {
   const searchOpen = useAtlasStore((state) => state.searchOpen)
   const setSearchOpen = useAtlasStore((state) => state.setSearchOpen)
   const [objectsOpen, setObjectsOpen] = useState(false)
+  const [worldsOpen, setWorldsOpen] = useState(false)
   const [viewMenuOpen, setViewMenuOpen] = useState(false)
   const hideArtificial = useAtlasStore((state) => state.hideArtificial)
   const hideMoons = useAtlasStore((state) => state.hideMoons)
@@ -128,11 +128,13 @@ export function TopBar() {
     }
   }, [query])
 
-  const catalogCount = getCatalogStats()?.count
+  const orbitStatus = useOrbitStatus()
+  const catalogCount = orbitStatus.count || undefined
   const activeCategory = CATEGORY_FILTERS.find((entry) => entry.id === objectCategory)
 
   const closeMenus = () => {
     setObjectsOpen(false)
+    setWorldsOpen(false)
     setViewMenuOpen(false)
   }
 
@@ -172,7 +174,7 @@ export function TopBar() {
               }}
             >
               {t('nav.objects')}
-              <em>{activeCategory ? t(`category.${activeCategory.id}` as never) : t('category.ALL')}</em>
+              <em>{categoryLabel(activeCategory?.id ?? 'ALL', language)}</em>
             </button>
             {objectsOpen ? (
               <div className="navmenu">
@@ -194,14 +196,68 @@ export function TopBar() {
                             setObjectCategory(id)
                             setFilter(id)
                             setObjectsOpen(false)
+                            // Selection applies the filter without opening another obstructing panel.
                           }}
                         >
-                          {t(`category.${id}` as never) ?? filter.label}
+                          {categoryLabel(id, language)}<em>{OBJECTS.filter(filter.match).length}</em>
                         </button>
                       )
                     })}
                   </div>
                 ))}
+              </div>
+            ) : null}
+          </div>
+
+          {/**
+           * 天体选择器（用户 2026-09-25）：导航条上直接列出太阳与九大行星，
+           * 点一下就用 focusPlanet() 把镜头推过去——和搜索、深链是同一条路径。
+           */}
+          <div className="navgroup">
+            <button
+              type="button"
+              className="navbtn"
+              aria-expanded={worldsOpen}
+              data-open={worldsOpen ? 'yes' : 'no'}
+              onPointerEnter={() => audio.emit('object.hover')}
+              onClick={() => {
+                const next = !worldsOpen
+                closeMenus()
+                setWorldsOpen(next)
+                audio.emit(next ? 'menu.open' : 'menu.close')
+              }}
+            >
+              {t('nav.worlds')}
+              <em>
+                {focusKind === 'PLANET' && focusId
+                  ? (WORLDS.find((entry) => entry.id === focusId)?.cn ?? focusId)
+                  : t('worlds.pick')}
+              </em>
+            </button>
+            {worldsOpen ? (
+              <div className="navmenu navmenu--worlds">
+                <div className="navmenu__group">{t('worlds.pick')}</div>
+                <div className="worlds__grid">
+                  {WORLDS.map((entry) => (
+                    <button
+                      key={entry.id}
+                      type="button"
+                      className="worlds__item"
+                      aria-pressed={focusKind === 'PLANET' && focusId === entry.id}
+                      onPointerEnter={() => audio.emit('object.hover')}
+                      onClick={() => {
+                        audio.emit('object.focus')
+                        focusPlanet(entry.id)
+                        setWorldsOpen(false)
+                      }}
+                    >
+                      <i style={{ background: entry.color }} aria-hidden />
+                      <span>{language === 'zh' ? entry.cn : entry.en}</span>
+                      <small>{entry.id === 'sun' ? t('worlds.star') : `${entry.au.toFixed(2)} AU`}</small>
+                    </button>
+                  ))}
+                </div>
+                <div className="worlds__hint">{t('worlds.hint')}</div>
               </div>
             ) : null}
           </div>
@@ -216,7 +272,11 @@ export function TopBar() {
             onPointerEnter={() => audio.emit('object.hover')}
             onClick={() => {
               audio.emit('view.change')
-              setSceneArrangement(arrangement === 'REAL' ? 'SIDE' : 'REAL')
+              /**
+               * 关掉实时位置时回到**打开之前**那个视图（用户 2026-09-25）：
+               * 旧版一律回 SIDE，于是从三维排列点一下再关掉就被丢回侧视图。
+               */
+              setSceneArrangement(arrangement === 'REAL' ? schematicView : 'REAL')
             }}
           >
             {t('nav.realtime')}
@@ -242,6 +302,7 @@ export function TopBar() {
             </button>
             {viewMenuOpen ? (
               <div className="navmenu navmenu--wide">
+                <FlightDeck onAction={closeMenus} />
                 <div className="navmenu__group">{t('viewmenu.resolve')}</div>
                 {ARRANGEMENTS.map((kind) => (
                   <button
@@ -276,6 +337,7 @@ export function TopBar() {
                       onChange={(event) => {
                         audio.emit(event.target.checked ? 'toggle.on' : 'toggle.off')
                         toggle(event.target.checked)
+                        closeMenus()
                       }}
                     />
                     {t(key)}

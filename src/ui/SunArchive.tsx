@@ -1,3 +1,7 @@
+import { BodyObservation } from './BodyObservation'
+import { ArchiveContents } from './ArchiveContents'
+import { useExperience } from '../state/experience'
+import { KnowledgeReader } from './KnowledgeReader'
 import { OBJECTS } from '../data/objects'
 import { SUN } from '../data/planets'
 import { useAtlasStore } from '../state/atlasStore'
@@ -18,6 +22,7 @@ export function SunArchive() {
   const spaceWeatherOpen = useAtlasStore((state) => state.spaceWeatherOpen)
   const toggleSpaceWeather = useAtlasStore((state) => state.toggleSpaceWeather)
 
+  const spectrum = useExperience(s=>s.sunSpectrum)
   const here = OBJECTS.filter((object) => object.system === 'sun')
 
   const rows: Array<[string, string]> = [
@@ -29,7 +34,7 @@ export function SunArchive() {
     [t('sun.core'), '约 1.57 × 10⁷ K'],
     [t('body.axialTilt'), '7.25°（相对黄道）'],
     [t('sun.rotation'), '25.05 天'],
-    [t('sun.activity'), '第 25 活动周 · 中等活动'],
+    [t('sun.activity'), '约 11 年周期 · 非实时活动数据'],
   ]
 
   return (
@@ -46,6 +51,13 @@ export function SunArchive() {
       <div className="archive__cn">{t('sun.type')}</div>
 
       <div className="archive__rule" />
+      <ArchiveContents identity="sun" />
+      <BodyObservation id={"sun"} />
+      <div className="catalogpanel__tabs" aria-label="太阳观测波段">
+        <button aria-pressed={spectrum==='halpha'} onClick={()=>useExperience.setState({sunSpectrum:'halpha'})}>{language==='zh'?'色球层 · Hα':'CHROMOSPHERE · Hα'}</button>
+        <button aria-pressed={spectrum==='white'} onClick={()=>useExperience.setState({sunSpectrum:'white'})}>{language==='zh'?'光球层 · 白光':'PHOTOSPHERE · WHITE LIGHT'}</button>
+      </div>
+      <p className="archive__body archive__body--dim">{language==='zh'?'Hα 风格为色球层增强示意：纹理经艺术重建，日珥为三维模拟，不代表此刻太阳的实测活动。白光模式展示不同的观测层。':'Hα-inspired enhanced visualization: artistically reconstructed texture and simulated prominences, not live solar imagery. White light reveals a different observational layer.'}</p>
 
       <dl className="archive__rows">
         {rows.map(([key, value]) => (
@@ -65,8 +77,8 @@ export function SunArchive() {
         <h4>{t('sun.activity')}</h4>
         <p className="archive__body">
           {pickText({
-            zh: '光球层的米粒组织与黑子来自 NASA SDO 的白光日面照片；色球层、日冕与日珥是独立图层。强烈的耀斑与日冕物质抛射只在开启专题图层时出现，主界面不会无意义地持续喷粒子。',
-            en: 'Granulation and sunspots come from the NASA SDO white-light photosphere; chromosphere, corona and prominences are separate layers. Strong flares and CMEs only appear when the dedicated layer is on — the main view never sprays particles for no reason.',
+            zh: '光球层的米粒组织与黑子采用程序化近似，并参考日面图像调制；色球层、日冕与日珥是独立图层。强烈的耀斑与日冕物质抛射只在开启专题图层时出现，主界面不会无意义地持续喷粒子。',
+            en: 'Granulation and sunspots are procedural approximations informed by solar imagery; chromosphere, corona and prominences are separate layers. Strong flares and CMEs only appear when the dedicated layer is on — the main view never sprays particles for no reason.',
           })}
         </p>
         <button
@@ -96,6 +108,7 @@ export function SunArchive() {
         </div>
       </section>
 
+      <KnowledgeReader id="sun" />
       <DataProvenance keys={['sdo', 'nasa', 'horizons', 'spice']} dataset="SDO HMI · IAU 2015" />
     </aside>
   )

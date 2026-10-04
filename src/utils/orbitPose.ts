@@ -72,6 +72,78 @@ export function advanceOrbitPose(delta: number): void {
   }
 }
 
+/**
+ * 图谱的**横向尺度**（用户 2026-09-25）。
+ *
+ * 侧视排列是"读行星"的信息图：行星排成一条线，间距收紧成紧凑视角，
+ * 整条谱系正好铺满画面、每颗行星都更大；三维排列是"读轨道"的视图，
+ * 用真实间距展开。切换时这条尺度平滑推进，所以是拉开的动作，不是跳变。
+ *
+ * 只作用于**日心距离的横向分量**（x / z）：行星本体、轨道线、小行星带、
+ * 彗星轨道、深空探测器全部按同一个倍率收放，于是谁也不会离开自己的轨道线。
+ * 每颗行星自己的卫星盘不参与缩放——收的是"行星之间"，不是"行星系统内部"。
+ */
+export const spacingPose = {
+  /** 当前横向倍率（1 = 真实间距，SPACING_COMPACT = 紧凑） */
+  value: 1,
+  from: 1,
+  target: 1,
+  elapsed: 0,
+  active: false,
+}
+
+/**
+ * 侧视排列时的紧凑倍率（v2：用户要求"再收紧"）。
+ *
+ * 下限由**行星盘**而不是行星本体决定：木星盘 12.2 + 土星盘 14.5 = 26.7 单位，
+ * 而两者的轨道间距是 68 单位 → 倍率必须大于 0.39，盘与盘才不会叠在一起。
+ * 取 0.46：明显更紧，同时木星—土星之间还留着约 3.7 单位的净空。
+ */
+export const SPACING_COMPACT = 0.46
+/** 展开 / 收紧的时长（与轨道展开同一套缓动，节奏一致） */
+const SPACING_DURATION = 1.4
+
+/** 当前横向尺度（每帧被相机、布局、轨道、彗星一起读取） */
+export function spacingScale(): number {
+  return spacingPose.value
+}
+
+/**
+ * 直接落到某个尺度：**只在首帧对齐时用**。
+ * 否则每次打开侧视图都会先播一遍"从真实间距收拢进来"的动画，
+ * 看起来像进场抖动，而不是用户主动切换视图。
+ */
+export function snapSpacing(compact: boolean): void {
+  spacingPose.value = compact ? SPACING_COMPACT : 1
+  spacingPose.target = spacingPose.value
+  spacingPose.from = spacingPose.value
+  spacingPose.elapsed = 0
+  spacingPose.active = false
+}
+
+/**
+ * 每帧推进。`compact` 由调用方从排列状态算出来（侧视 → true），
+ * 这样菜单、深链、聚焦、回主页任何一条入口都不需要单独通知。
+ */
+export function advanceSpacing(delta: number, compact: boolean): void {
+  const target = compact ? SPACING_COMPACT : 1
+  if (spacingPose.target !== target) {
+    spacingPose.from = spacingPose.value
+    spacingPose.target = target
+    spacingPose.elapsed = 0
+    spacingPose.active = true
+  }
+  if (!spacingPose.active) return
+  spacingPose.elapsed += delta
+  const k = Math.min(1, spacingPose.elapsed / SPACING_DURATION)
+  const eased = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2
+  spacingPose.value = spacingPose.from + (spacingPose.target - spacingPose.from) * eased
+  if (k >= 1) {
+    spacingPose.value = spacingPose.target
+    spacingPose.active = false
+  }
+}
+
 // ------------------------------------------------------------ 行星位置姿态
 //
 // 图谱有两种"行星在哪"：

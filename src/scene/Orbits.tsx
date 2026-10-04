@@ -16,6 +16,7 @@ import { useAtlasStore } from '../state/atlasStore'
 import { mapAuToVisual } from '../astronomy/visualScale'
 import { focusBackgroundDim, orbitRevealFactor, revealRamp, sceneReveal } from '../utils/reveal'
 import { adaptiveQuality } from '../performance/AdaptiveQualityManager'
+import { spacingScale } from '../utils/orbitPose'
 
 /**
  * 行星轨道 + 深空轨迹 + 小行星带 / 柯伊伯带 / 奥尔特云（方案书 §14）。
@@ -173,6 +174,7 @@ function ringPoints(radius: number, squash: number, segments = 220): THREE.Vecto
  *   · 整层不发光、不参与 bloom，只是"更深的灰"
  */
 const BELT_BAND_WIDTH = BELT_RANGE.outer - BELT_RANGE.inner
+
 const beltBandMaterial = new THREE.ShaderMaterial({
   uniforms: {
     uOpacity: { value: 0.09 },
@@ -393,12 +395,21 @@ export function Orbits() {
     trajectoryGroup.visible = !hideAllOrbits
     if (hideAllOrbits) return
 
+    /**
+     * 紧凑尺度（用户 2026-09-25）：轨道线与三条带都是**一次性建好的静态几何**，
+     * 所以不重建顶点，直接给整组一个缩放——侧视排列收紧、三维排列展开，
+     * 与行星位置用的是同一个倍率，行星不会离开自己的轨道线。
+     * 三圈带用等比缩放：奥尔特云是球壳，等比才不会把它压扁。
+     */
+    const spacing = spacingScale()
+    orbitGroup.scale.set(spacing, 1, spacing)
+    beltGroup.scale.setScalar(spacing)
+
     beltGuideMaterial.uniforms.uTime.value = t
     kuiperGuideMaterial.uniforms.uTime.value = t
     oortGuideMaterial.uniforms.uTime.value = t
 
     const viewHeight = (camera.top - camera.bottom) / (camera.zoom || 1)
-
     /**
      * 开场 → 图谱的揭示（v7.2）。
      *

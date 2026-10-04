@@ -17,6 +17,6 @@ export const perfState = {
 }
 
 /** 渲染比例下限：再低就没有可读性了 */
-export const PERF_MIN_SCALE = 0.55
+export const PERF_MIN_SCALE = 0.75
 /** 设备像素比上限：4K/高缩放屏上没必要按 2 倍渲染 */
 export const PERF_MAX_DPR = 1.5

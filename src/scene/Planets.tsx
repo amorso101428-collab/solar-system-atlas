@@ -1,3 +1,7 @@
+import { earthRotationDays, missionLivePosition, isLiveOrbitMode } from '../astronomy/liveOrbits'
+import { EarthClouds } from './EarthClouds'
+import { useExperience } from '../state/experience'
+import { Atmosphere } from './Atmosphere'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -133,6 +137,7 @@ function SystemDiskLayer({ systemId }: { systemId: SystemId }) {
   const hoveredId = useAtlasStore((state) => state.hoveredId)
   const selectedObjectId = useAtlasStore((state) => state.selectedObjectId)
   const template = useMemo(() => unitCirclePositions(), [])
+  const liveScratch = useMemo(() => new THREE.Vector3(), [])
 
   const lines = useMemo(() => {
     const disk = getWorld(0).systems.get(systemId)
@@ -207,7 +212,8 @@ function SystemDiskLayer({ systemId }: { systemId: SystemId }) {
     const selfFocused =
       (focusKind === 'PLANET' && focusId === systemId) ||
       (focusKind === 'MOON' && focusId != null && MOON_PARENT.get(focusId) === systemId)
-    const selfDim = selfFocused ? 0.22 : 1
+    const bodyFocused = focusKind === 'PLANET' || focusKind === 'MOON'
+    const selfDim = bodyFocused && !useExperience.getState().context ? 0 : selfFocused ? 0.22 : 1
     const orbital = viewLayer === 'ORBITAL'
     const artificialFocus = focusKind === 'OBJECT' && focusId ? 1 : 0
     const artificialScale =
@@ -233,7 +239,7 @@ function SystemDiskLayer({ systemId }: { systemId: SystemId }) {
       const fades = fadesRef.current
       fades[i] = (fades[i] ?? 0) + (target - (fades[i] ?? 0)) * damp
       const fade = fades[i]!
-      line.visible = fade > 0.012
+      line.visible = fade > 0.012 && !(systemId === 'earth' && isLiveOrbitMode() && missionLivePosition(orbit.id, liveScratch))
       const material = line.material as THREE.ShaderMaterial
       material.uniforms.uTime.value = t
       material.uniforms.uOpacity.value =
@@ -382,9 +388,16 @@ function PlanetBody({ planet }: { planet: PlanetDef }) {
     [planet]
   )
 
-  const albedo = useTexture(planet.texture)
+  const focused = useAtlasStore(s => s.focusId === planet.id)
+  const viewportWidth = useThree(s => s.size.width)
+  const hero = planet.id === 'earth' && focused && viewportWidth >= 900
+  const baseAlbedo = useTexture(planet.texture)
+  const heroAlbedo = useTexture(hero ? 'planets/earth_daymap-4k.jpg' : null)
+  const albedo = heroAlbedo ?? baseAlbedo
   const night = useTexture(planet.id === 'earth' ? 'planets/earth_nightmap-2k.jpg' : null)
-  const clouds = useTexture(planet.id === 'earth' ? 'planets/earth_clouds_nasa-2k.jpg' : null)
+  const baseClouds = useTexture(planet.id === 'earth' ? 'planets/earth_clouds_nasa-2k.jpg' : null, THREE.NoColorSpace)
+  const heroClouds = useTexture(hero ? 'planets/earth_clouds-4k.jpg' : null, THREE.NoColorSpace)
+  const clouds = heroClouds ?? baseClouds
 
   useEffect(() => {
     attachSurfaceMaps(handle, albedo, night, clouds)
@@ -413,6 +426,7 @@ function PlanetBody({ planet }: { planet: PlanetDef }) {
      */
     const focus = useAtlasStore.getState()
     const focusIsBody = focus.focusKind === 'PLANET' || focus.focusKind === 'MOON'
+    group.visible = !focusIsBody || useExperience.getState().context || (focus.focusKind === 'PLANET' && focus.focusId === planet.id)
     const focusedId =
       focus.focusKind === 'PLANET' ? focus.focusId : focus.focusKind === 'MOON' ? 'moon' : null
     const focusDim = focusBackgroundDim(focus.focusKind)
@@ -443,7 +457,7 @@ function PlanetBody({ planet }: { planet: PlanetDef }) {
     if (meshRef.current) {
       meshRef.current.rotation.y = spinAngle(
         planet.orientation,
-        daysSinceJ2000(smoothYear())
+        planet.id === 'earth' ? earthRotationDays(smoothYear()) : daysSinceJ2000(smoothYear())
       )
     }
     handle.material.uniforms.uTime.value = t
@@ -455,8 +469,10 @@ function PlanetBody({ planet }: { planet: PlanetDef }) {
         <mesh ref={meshRef} name={`planet:${planet.id}`}>
           <sphereGeometry args={[planet.radius, 96, 64]} />
           <primitive object={handle.material} attach="material" />
+          {planet.id === 'earth' && <EarthClouds radius={planet.radius} texture={clouds} />}
         </mesh>
       </group>
+      {planet.atmosphere && <Atmosphere id={planet.id} radius={planet.radius} color={planet.atmosphere.color} />}
       {planet.rings ? <RingSystem planet={planet} /> : null}
     </group>
   )
@@ -546,6 +562,7 @@ function MoonBody({ moon }: { moon: MoonDef }) {
     const focus = useAtlasStore.getState()
     const focusDim = focusBackgroundDim(focus.focusKind)
     const focused = focus.focusKind === 'MOON' && focus.focusId === moon.id
+    ref.current.visible = !(focus.focusKind === 'PLANET' || focus.focusKind === 'MOON') || useExperience.getState().context || focused
     const wantDim = focused ? 1 : focusDim.planets
     const step = THREE.MathUtils.clamp(delta, 1 / 240, 0.05)
     handle.material.uniforms.uDim.value = damp(

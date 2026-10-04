@@ -110,21 +110,19 @@ ${SURFACE}
 vec3 mappedSurface(vec3 n, vec3 p, int mode){
   vec3 base = texture2D(uMap, vUv).rgb;
   if (mode == 5) {
-    // 地球：独立云层（真实云图，缓慢西移）
+    // Linear-light albedo, with optical cloud coverage and offset cloud shadows.
     if (uHasClouds > 0.5) {
-      vec2 cuv = vec2(fract(vUv.x + uTime * 0.0016), vUv.y);
-      // 云要"看得见"：对比度拉开，云顶纯白，海面上的薄云也留得住（v6 §1）
-      float raw = texture2D(uClouds, cuv).r;
-      float c = smoothstep(0.08, 0.52, raw);
-      base = mix(base, vec3(0.97, 0.985, 1.0), clamp(c * 1.05, 0.0, 1.0));
+      vec2 cuv = vec2(fract(vUv.x + uTime * 0.00012), vUv.y);
+
+      float shadow = 1.0-exp(-texture2D(uClouds, cuv + vec2(0.0018, 0.0006)).r*2.2);
+      base *= 1.0 - shadow * 0.12;
+
     }
-    // Blue Marble 的"深蓝深绿高对比"要压住，但不能压成灰球：
-    // 只做很轻的去饱和，然后把海洋压成真正的深海蓝、整体提亮（v6 §1）。
-    float luma = dot(base, vec3(0.299, 0.587, 0.114));
-    base = mix(base, vec3(luma), 0.08);
-    float ocean = smoothstep(0.0, 0.10, base.b - base.r);
-    base = mix(base, base * vec3(0.72, 0.92, 1.28), ocean * 0.75);
-    base = min(base * 1.28 + vec3(0.02), vec3(1.0));
+    float sea = smoothstep(0.12,0.50,(base.b-base.r)/(base.b+base.r+0.005));
+    float luminance = dot(base,vec3(0.2126,0.7152,0.0722));
+    // Muted land and a finite ocean reflectance, rather than crushed navy pixels.
+    base = mix(base,vec3(luminance)*vec3(1.02,1.0,.98),.32);
+    base = mix(base,vec3(.026,.040,.065)+luminance*.12,sea*.86);
     return base;
   }
   if (mode == 6) {
@@ -244,8 +242,8 @@ void main(){
   // 之前那套 16% 环境光就是"暗面像玻璃一样透亮"的根源（方案书 §9）。
   // v6 §1：受光区再放开一点（-0.12 → 0.24），否则地球的可见面总是半明半暗，
   // "Blue Marble 那种明亮的蓝"根本出不来。
-  float lambert = smoothstep(-0.12, 0.24, ndl);
-  float ambient = 0.03 + 0.05 * uNightLights;
+  float lambert = mode == 5 ? pow(max(ndl, 0.0), 0.72) : smoothstep(-0.12, 0.24, ndl);
+  float ambient = mode == 5 ? 0.003 : 0.03;
   vec3 col = albedo * (ambient + (1.0 - ambient) * lambert);
   // 昼夜线附近极弱的一次散射：避免夜面死黑，但不再整颗星泛橘
   col += albedo * smoothstep(0.20, 0.0, abs(ndl)) * vec3(0.10, 0.075, 0.055) * 0.55;
@@ -259,21 +257,28 @@ void main(){
   // 真实贴图的地球：海洋照样要有镜面反光，否则整颗球是"哑光塑料"
   if (mode == 5 && uHasMap > 0.5) {
     float ocean = smoothstep(0.0, 0.10, albedo.b - albedo.r);
-    float glint = pow(max(dot(reflect(-L, N), V), 0.0), 42.0);
-    col += vec3(1.0, 0.97, 0.92) * glint * ocean * 0.42 * lambert;
+    float glint = pow(max(dot(reflect(-L, N), V), 0.0), 110.0);
+    float clearSky = uHasClouds > 0.5 ? exp(-texture2D(uClouds,vec2(fract(vUv.x+uTime*0.00012),vUv.y)).r*3.2) : 1.0;
+    col += vec3(1.0, 0.97, 0.92) * glint * ocean * 0.15 * lambert * clearSky;
   }
 
   // 夜景灯光：有夜面贴图时用真实城市灯光，否则程序化点阵
   if (uNightLights > 0.001) {
     // 有真实夜灯贴图就用它，否则退回程序化点阵
     float lights = uHasMap > 0.5 ? texture2D(uNight, vUv).r : nightLights(N, ndl);
-    col += vec3(1.0, 0.82, 0.55) * lights * uNightLights * smoothstep(0.32, -0.05, ndl);
+    col += vec3(1.0, 0.82, 0.55) * lights * uNightLights * (1.0 - smoothstep(-0.18, 0.02, ndl));
   }
 
   // 大气边缘光
   float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
   // 只让受光侧的大气发光：夜面的大气辉光必须消失，否则又变回"透亮的暗面"
-  col += uAtmoColor * rim * uAtmoStrength * (0.04 + 0.96 * lambert * lambert);
+  if(mode==5){
+    float path=pow(1.0-clamp(dot(N,V),0.0,1.0),2.2);
+    float haze=(.085+.22*path)*smoothstep(-.05,.18,ndl);
+    col=mix(col,vec3(.12,.17,.24)*lambert,haze);
+  }else{
+    col += uAtmoColor * rim * uAtmoStrength * (0.04 + 0.96 * lambert * lambert);
+  }
 
   // v8 §26：聚焦某颗行星时，其余行星由 uDim 压暗（不是全屏变暗）
   gl_FragColor = vec4(col * uDim, 1.0);
@@ -413,6 +418,9 @@ export function createSunMaterial(): SunMaterialHandle {
       uniform float uTime;
       uniform sampler2D uSunMap;
       uniform float uHasSunMap;
+      uniform sampler2D uHalphaMap;
+      uniform float uHalpha;
+      uniform float uDetail;
       varying vec3 vWorldPos;
       varying vec3 vNormalW;
       varying vec2 vUv;
@@ -427,7 +435,7 @@ export function createSunMaterial(): SunMaterialHandle {
           float lat = (hash1(fi * 1.37) - 0.5) * 1.15;
           float lon = hash1(fi * 2.71) * 6.2831 + uTime * 0.006;
           vec3 dir = normalize(vec3(cos(lat) * cos(lon), sin(lat), cos(lat) * sin(lon)));
-          float r = 0.16 + hash1(fi * 5.11) * 0.22;
+          float r = 0.015 + hash1(fi * 5.11) * 0.034;
           float ang = acos(clamp(dot(N, dir), -1.0, 1.0));
           float life = 0.65 + 0.35 * sin(uTime * 0.05 + fi * 2.3);
           // 半影 + 本影：本影更深、更小
@@ -442,6 +450,17 @@ export function createSunMaterial(): SunMaterialHandle {
         vec3 N = normalize(vNormalW);
         vec3 V = normalize(cameraPosition - vWorldPos);
         float mu = clamp(dot(N, V), 0.0, 1.0);
+
+        if (uHalpha > 0.5) {
+          vec2 huv = vec2(fract(vUv.x + uTime * 0.0003), vUv.y);
+          vec3 observed = texture2D(uHalphaMap, huv).rgb;
+          float luminance=dot(observed,vec3(.299,.587,.114));
+          vec3 halpha = mix(observed,vec3(luminance)*vec3(1.32,1.05,.76),.24) * 1.48 * mix(.76,1.0,pow(mu,.35));
+          halpha += vec3(.16,.10,.035)*pow(1.0-mu,7.0);
+          halpha = mix(vec3(1.25,1.06,.77)*mix(.88,1.0,mu),halpha,uDetail);
+          gl_FragColor = vec4(halpha, 1.0);
+          return;
+        }
 
         /**
          * 日面（v6 §1 重做）。
@@ -460,14 +479,15 @@ export function createSunMaterial(): SunMaterialHandle {
         float granule = smoothstep(
           0.32,
           0.72,
-          fbm3(vec3(N.x * 120.0, N.y * 66.0, uTime * 0.08))
+          fbm3(N * 120.0 + vec3(uTime * 0.008))
         );
         float fineGranule = smoothstep(
           0.34,
           0.7,
-          fbm3(vec3(N.x * 260.0, N.y * 150.0, uTime * 0.16))
+          fbm3(N * 260.0 + vec3(uTime * 0.016))
         );
-        float granules = granule * 0.68 + fineGranule * 0.32;
+        float footprint = length(fwidth(N)) * 120.0;
+        float granules = mix(granule * 0.68 + fineGranule * 0.32, 0.5, smoothstep(0.3, 1.6, footprint));
         float superGran = fbm3(N * 14.0 - vec3(uTime * 0.018));
         // 有真实日面照片时，用它的亮度补一层大尺度不均匀（活动区 / 谱斑）
         float photo = 0.5;
@@ -476,12 +496,12 @@ export function createSunMaterial(): SunMaterialHandle {
           photo = dot(texture2D(uSunMap, uv).rgb, vec3(0.299, 0.587, 0.114));
         }
         // 照片只占三成：它负责大尺度的不均匀，不能压过米粒组织
-        float l = clamp(photo * 0.34 + granules * 0.5 + superGran * 0.16, 0.0, 1.0);
+        float l = clamp(photo * 0.55 + granules * 0.32 + superGran * 0.13, 0.0, 1.0);
         // 暖白 → 亮斑偏纯白：不是橙色，也不是纯白
-        vec3 coreWarm = mix(vec3(1.0, 0.90, 0.74), vec3(1.0, 0.975, 0.93), smoothstep(0.34, 0.86, l));
-        core = coreWarm * (0.9 + 0.24 * l);
+        vec3 coreWarm = mix(vec3(0.78, 0.69, 0.55), vec3(1.0, 0.95, 0.84), smoothstep(0.27, 0.82, l));
+        core = coreWarm * (0.66 + 0.22 * l);
         // 米粒的明暗对比：±17%，这是"看得见的颗粒感"的下限
-        core *= 0.83 + 0.34 * granules;
+        core *= 0.75 + 0.4 * granules;
         // 谱斑 / 活动区：亮斑处更白更亮，交给 bloom 出光
         core += vec3(0.16, 0.13, 0.07) * smoothstep(0.84, 1.0, l);
         // 黑子：本影（深）+ 半影（浅）两层，来自 sunspots() 的现成结构
@@ -501,8 +521,9 @@ export function createSunMaterial(): SunMaterialHandle {
          * 整颗球不会一起发光。旧版乘到 1.22，整片日面都在 bloom 里，
          * 细节被糊平，看起来就是"一颗发光的奶白球"。
          */
-        core *= 1.02;
+        core *= 0.91;
 
+        core=mix(vec3(1.22,1.15,.99)*mix(.87,1.0,mu),core,uDetail);
         gl_FragColor = vec4(core, 1.0);
       }
     `,
@@ -510,6 +531,9 @@ export function createSunMaterial(): SunMaterialHandle {
       uTime: { value: 0 },
       uSunMap: { value: null as THREE.Texture | null },
       uHasSunMap: { value: 0 },
+      uHalphaMap: { value: null },
+      uHalpha: { value: 0 },
+      uDetail: { value: 1 },
     },
   })
 
@@ -563,13 +587,14 @@ export function createCoronaMaterial(): THREE.ShaderMaterial {
       precision highp float;
       uniform float uTime;
       uniform float uIntensity;
+      uniform float uHalpha;
       varying vec3 vWorldPos;
       varying vec3 vNormalW;
       ${NOISE}
       void main(){
         vec3 N = normalize(vNormalW);
         vec3 V = normalize(cameraPosition - vWorldPos);
-        float mu = clamp(dot(N, V), 0.0, 1.0);
+        float mu = abs(dot(N, V));
         /**
          * 日冕（v6 §1 重做）：可见光日冕是**日冕自由电子散射出来的极弱散射光**，
          * 不是从太阳射出去的一束束"光线"。所以这里只有三样东西：
@@ -586,12 +611,15 @@ export function createCoronaMaterial(): THREE.ShaderMaterial {
         float holes = smoothstep(0.28, 0.6, streamer);
         float mask = (0.35 + 0.65 * holes) * (0.75 + 0.25 * streamerB);
         vec3 col = mix(vec3(1.0, 0.95, 0.88), vec3(1.0, 0.88, 0.74), fres * 0.4);
-        float alpha = fres * mask * 0.075 * uIntensity;
-        gl_FragColor = vec4(col * alpha, alpha);
+        col = mix(col,vec3(1.0,.83,.60),uHalpha*.5);
+        float projected = sqrt(max(0.0,1.0-mu*mu))*mix(1.55,1.22,uHalpha);
+        float envelope = exp(-max(projected-1.0,0.0)*18.0)*(1.0-smoothstep(mix(1.30,1.08,uHalpha),mix(1.55,1.22,uHalpha),projected));
+        float alpha = envelope * mask * 0.20 * uIntensity;
+        gl_FragColor = vec4(col, alpha);
       }
     `,
     // v8 §19：uIntensity 让"太阳在屏幕上很小时"把日冕一起收掉，避免亚像素闪动
-    uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 } },
+    uniforms: { uTime: { value: 0 }, uIntensity: { value: 1 }, uHalpha: { value: 0 } },
     transparent: true,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
@@ -622,9 +650,9 @@ export function createProminenceMaterial(seed: number, hue: number): THREE.Shade
         float flow = 0.55 + 0.45 * sin(vProgress * 18.0 - uTime * 0.5 + uSeed * 6.2831);
         float edge = sin(vProgress * 3.14159);
         float breath = 0.45 + 0.55 * (0.5 + 0.5 * sin(uTime * 0.07 + uSeed * 9.4));
-        vec3 col = mix(vec3(1.0, 0.42, 0.1), vec3(1.0, 0.84, 0.52), uHue);
-        float alpha = edge * flow * breath * uIntensity;
-        gl_FragColor = vec4(col * alpha * 1.9, alpha);
+        vec3 col = mix(vec3(1.0, 0.07, 0.008), vec3(1.0, 0.26, 0.035), uHue);
+        float alpha = clamp(edge * flow * breath * uIntensity,0.0,.72);
+        gl_FragColor = vec4(col * 1.25, alpha);
       }
     `,
     uniforms: {

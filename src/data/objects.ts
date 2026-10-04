@@ -1,3 +1,4 @@
+import { EXPANDED_MISSIONS } from './expanded-missions'
 import type { SpaceObject } from './types'
 import { EARTH_EXTRA } from './extra-earth'
 import { MISSION_EXTRA } from './extra-mission'
@@ -1362,14 +1363,18 @@ export const CORE_OBJECTS: SpaceObject[] = [
  * 完整目录：核心档案 + 扩充档案（方案书 §5，目标 100~120 个可交互对象）。
  * 顺序即标签的排布顺序，所以重要对象先排。
  */
-export const OBJECTS: SpaceObject[] = [
+const OBJECT_RECORDS: SpaceObject[] = [
   // 核心档案默认是重要性 1：它们有完整任务故事，也是首屏的叙事骨架
   ...CORE_OBJECTS.map((object) => ({ ...object, importance: object.importance ?? 1 })),
   ...EARTH_EXTRA,
   ...MISSION_EXTRA,
   // 中国航天（v8 §38）：和 NASA / ESA 同级的一整条分类，不是"其他"里的脚注
   ...CHINA_EXTRA,
+  ...EXPANDED_MISSIONS,
 ]
+
+// Keep the richer core archive when supplementary collections repeat a mission.
+export const OBJECTS: SpaceObject[] = OBJECT_RECORDS.filter((object, index, all) => all.findIndex(entry => entry.id === object.id) === index)
 
 export const OBJECT_BY_ID = new Map(OBJECTS.map((object) => [object.id, object]))
 export const FIRST_LAUNCH_YEAR = 1957

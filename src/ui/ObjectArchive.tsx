@@ -1,4 +1,6 @@
+import { OrbitTelemetry } from './OrbitTelemetry'
 import { useState } from 'react'
+import { ArchiveContents } from './ArchiveContents'
 import { OBJECT_BY_ID } from '../data/objects'
 import { useAtlasStore } from '../state/atlasStore'
 import { DataProvenance } from './DataProvenance'
@@ -35,7 +37,14 @@ function fileNumber(id: string): string {
 export function ObjectArchive({ objectId }: { objectId: string }) {
   const [expanded, setExpanded] = useState(false)
   const [imageFailed, setImageFailed] = useState(false)
-  const back = useAtlasStore((state) => state.back)
+  /**
+   * 关闭详情 = 按聚焦历史退回上一级（用户 2026-09-25 修正版）。
+   *
+   * 上一版在这里硬把任务图鉴打开，结果"关到最后目录自己冒出来"。现在不加任何强制：
+   * 历史里连**当时任务图鉴是开是关**一起存了（见 atlasStore 的 saveFocusView），
+   * 所以从对象列表进来的详情，关掉就回到那张列表；从别处进来的，就回到它进来的地方。
+   */
+  const closeArchive = () => useAtlasStore.getState().back()
   const language = useAtlasStore((state) => state.language)
   const t = useT()
   const pickText = usePick()
@@ -66,7 +75,7 @@ export function ObjectArchive({ objectId }: { objectId: string }) {
         <span className="archive__id">
           {t('archive.file')} {fileNumber(object.id)} · {object.category}
         </span>
-        <button type="button" className="archive__close" onClick={back}>
+        <button type="button" className="archive__close" onClick={closeArchive}>
           {t('archive.close')} ✕
         </button>
       </div>
@@ -78,6 +87,8 @@ export function ObjectArchive({ objectId }: { objectId: string }) {
       </div>
 
       <div className="archive__rule" />
+      <ArchiveContents identity={objectId} />
+      <OrbitTelemetry objectId={objectId} />
 
       <dl className="archive__rows archive__rows--key">
         {keyRows

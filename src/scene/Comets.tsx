@@ -4,6 +4,7 @@ import { useFrame } from '@react-three/fiber'
 import { COMETS, type CometDef } from '../data/comets'
 import { cometOrbitPoints } from '../astronomy/cometOrbit'
 import { useAtlasStore } from '../state/atlasStore'
+import { spacingScale } from '../utils/orbitPose'
 
 /**
  * 彗星（v6 §4）。
@@ -36,7 +37,11 @@ export function Comets() {
   const visible = useAtlasStore((state) => !state.hideAllOrbits)
   const groupRef = useRef<THREE.Group>(null)
   useFrame(() => {
-    if (groupRef.current) groupRef.current.visible = visible
+    if (!groupRef.current) return
+    groupRef.current.visible = visible
+    // 彗星轨道线同样是静态几何：跟着紧凑尺度横向收放（位置由 cometDisplayPosition 负责）
+    const spacing = spacingScale()
+    groupRef.current.scale.set(spacing, 1, spacing)
   })
   return (
     <group ref={groupRef} name="comets">

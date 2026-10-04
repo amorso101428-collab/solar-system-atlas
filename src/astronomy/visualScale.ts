@@ -18,6 +18,8 @@
  * 相邻行星的间距就是"视觉分层"，火星→木星那一段刻意留出 22 单位的空区
  * （小行星带正好落在里面）。
  *
+ * 注意：表里写的是 **1× 的标定值**，真正输出还要乘下面的 ORBIT_SCALE。
+ *
  * 外太阳系的间距按"每个行星系统的盘半径 + 4~6 单位净空"倒推：
  *   木星盘 10.6 / 土星盘 12.6（含 2.35 倍半径的环）/ 天王星盘 7.6 / 海王星盘 5.8，
  * 所以 66 → 96 → 118 → 133 → 144 这一段里，相邻两圈的同心圆永远不会叠在一起
@@ -48,6 +50,16 @@ const AU_STOPS: ReadonlyArray<readonly [number, number]> = [
   [39.48, 194], // Pluto
 ]
 
+/**
+ * **整体轨道尺度**（用户 2026-09-24：太阳系太紧凑，整体轨道放大两倍）。
+ *
+ * 只作用于"轨道半径"这一类量：AU_STOPS 是 1× 的标定值，乘上系数之后
+ * 所有轨道、环带、柯伊伯带、奥尔特云一起等比拉开；太阳与行星的**视觉半径不动**
+ * （它们是本文件里的独立常量）。于是内太阳系不再挤在太阳边上，相邻行星盘之间
+ * 也重新出现净空。要再调尺度只改这一个数。
+ */
+export const ORBIT_SCALE = 2
+
 /** 真实 AU → 视觉轨道半径（分段线性 + 末端线性外推） */
 export function mapAuToVisual(au: number): number {
   const value = Math.max(0, au)
@@ -56,13 +68,13 @@ export function mapAuToVisual(au: number): number {
     const [auB, rB] = AU_STOPS[i]!
     if (value <= auB) {
       const k = (value - auA) / (auB - auA)
-      return rA + (rB - rA) * k
+      return (rA + (rB - rA) * k) * ORBIT_SCALE
     }
   }
   const [auLast, rLast] = AU_STOPS[AU_STOPS.length - 1]!
   const [auPrev, rPrev] = AU_STOPS[AU_STOPS.length - 2]!
   const slope = (rLast - rPrev) / (auLast - auPrev)
-  return rLast + (value - auLast) * slope
+  return (rLast + (value - auLast) * slope) * ORBIT_SCALE
 }
 
 /** 单调三次插值的斜率（Fritsch–Carlson），保证曲线不过冲、不产生折角 */
@@ -119,13 +131,14 @@ export function mapAuToVisualSmooth(au: number): number {
       const h01 = -2 * t3 + 3 * t2
       const h11 = t3 - t2
       return (
-        h00 * AU_YS[i - 1]! + h10 * h * AU_MS[i - 1]! + h01 * AU_YS[i]! + h11 * h * AU_MS[i]!
+        (h00 * AU_YS[i - 1]! + h10 * h * AU_MS[i - 1]! + h01 * AU_YS[i]! + h11 * h * AU_MS[i]!) *
+        ORBIT_SCALE
       )
     }
   }
   // 末端线性外推，和分段版保持一致
   const last = n - 1
-  return AU_YS[last]! + (value - AU_XS[last]!) * AU_MS[last]!
+  return (AU_YS[last]! + (value - AU_XS[last]!) * AU_MS[last]!) * ORBIT_SCALE
 }
 
 /**

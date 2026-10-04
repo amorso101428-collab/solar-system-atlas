@@ -55,3 +55,6 @@ if (new URLSearchParams(window.location.search).get('debug') === '1') {
     quality: adaptiveQuality.debugInfo(),
   })
 }
+
+import './styles/experience.css'
+import './styles/optical.css'

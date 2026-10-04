@@ -32,6 +32,7 @@ export type ObjectKind =
   | 'constellation'
 
 export type ObjectStatus =
+  | 'UNKNOWN'
   | 'ACTIVE'
   | 'EXTENDED'
   | 'COMPLETED'

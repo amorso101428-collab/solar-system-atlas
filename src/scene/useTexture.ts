@@ -37,7 +37,7 @@ export function textureTierSuffix(): '' | '-1k' | '-512' {
 
 function tierUrlOf(url: string, suffix: string): string | null {
   if (!suffix) return null
-  const match = /^(.*?)(-2k)?(\.[a-z]+)$/i.exec(url)
+  const match = /^(.*?)(-[248]k)?(\.[a-z]+)$/i.exec(url)
   if (!match) return null
   return `${match[1]}${suffix}${match[3]}`
 }
@@ -69,7 +69,7 @@ function bindTextureQuality(): void {
   adaptiveQuality.subscribe(applyTextureQuality)
 }
 
-export function useTexture(url: string | null): THREE.Texture | null {
+export function useTexture(url: string | null, colorSpace: THREE.ColorSpace = THREE.SRGBColorSpace): THREE.Texture | null {
   const [texture, setTexture] = useState<THREE.Texture | null>(null)
 
   useEffect(() => {
@@ -81,26 +81,29 @@ export function useTexture(url: string | null): THREE.Texture | null {
     let cancelled = false
     const path = url.startsWith('/') || url.startsWith('http') ? url : `/${url}`
     const loader = new THREE.TextureLoader()
+    let owned: THREE.Texture | null = null
     const accept = (tex: THREE.Texture) => {
       if (cancelled) {
         tex.dispose()
         return
       }
-      tex.colorSpace = THREE.SRGBColorSpace
+      tex.colorSpace = colorSpace
       applyQualityTo(tex)
+      owned = tex
       loaded.add(tex)
       setTexture(tex)
     }
-    const giveUp = () => setTexture(null)
+    const giveUp = () => { if (!cancelled) setTexture(null) }
     /** 先试分级图，404 再回退原图 */
     const tier = tierUrlOf(path, textureTierSuffix())
-    const loadOriginal = () => loader.load(path, accept, undefined, giveUp)
+    const loadOriginal = () => { if (!cancelled) loader.load(path, accept, undefined, giveUp) }
     if (tier) loader.load(tier, accept, undefined, loadOriginal)
     else loadOriginal()
     return () => {
       cancelled = true
+      if (owned) { loaded.delete(owned); owned.dispose() }
     }
-  }, [url])
+  }, [url, colorSpace])
 
   return texture
 }

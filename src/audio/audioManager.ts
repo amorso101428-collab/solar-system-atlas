@@ -7,21 +7,7 @@ import {
   type MusicSourceMode,
 } from './musicTracks'
 
-/**
- * 声音层（v9 §1–§4）：**只剩背景音乐**。
- *
- * v9 删掉了全部交互音效（hover / click / open / close / focus / back /
- * timeline tick / search / menu / 右键 …），也删掉了整套 SFX 引擎
- * —— 没有 cue 表、没有音频缓冲、没有 AudioContext。
- *
- * 音乐用两个 HTMLAudioElement 轮换播放：
- *   · 浏览器按需流式读取，不把整首歌解进内存；
- *   · 淡入淡出直接渐变 el.volume（跨域直链也能淡，因为不读取采样）；
- *   · 默认从第 1 首开始**顺序播放**，不记忆上次进度、默认不随机。
- *
- * 自动播放：进站立刻尝试；被浏览器策略拦下时，在第一次 pointerdown / keydown
- * 无缝恢复（不会出现挡住主页的"请点击播放"）。
- */
+/** Background music plus gesture-unlocked, rate-limited synthesized interface cues. */
 const MUSIC_FADE = 0.9
 /** 换曲的交叉淡入淡出时长（秒） */
 const MUSIC_CROSSFADE = 2.4
@@ -46,26 +32,42 @@ class AudioManager {
   /** 默认播放源：网易云官方外链（站内不打包音频，直连唱片公司 CDN） */
   private sourceMode: MusicSourceMode = 'netease'
 
-  /* ------------------------------------------------------------------ 兼容层
-   * v9 之前全站用 `audio.emit('button.click')` 这类语义事件触发音效。
-   * 音效已经全部删除，这里保留一个明确的空实现，让调用点不必逐个改写，
-   * 同时保证**没有任何 SFX 初始化、加载或播放**。
-   */
-  emit(_event: string): void {
-    void _event
+  private sfx: AudioContext | null = null
+  private sfxEnabled = true
+  private hoverMuted = false
+  private lastCue = 0
+  emit(event: string): void {
+    if (!this.sfxEnabled || (event.includes('hover') && this.hoverMuted)) return
+    const ctx = this.sfx
+    if (!ctx || ctx.state !== 'running') return
+    const now = ctx.currentTime
+    if (now - this.lastCue < (event.includes('hover') ? 0.12 : 0.04)) return
+    this.lastCue = now
+    const hover = event.includes('hover')
+    const close = /close|off|back/.test(event)
+    const focus = /focus|open|change/.test(event)
+    const duration = hover ? 0.045 : focus ? 0.22 : 0.10
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(hover ? 0.012 : 0.035, now + 0.007)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
+    gain.connect(ctx.destination)
+    const oscillator = ctx.createOscillator()
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(hover ? 1250 : close ? 680 : 420, now)
+    oscillator.frequency.exponentialRampToValueAtTime(close ? 240 : focus ? 1350 : 880, now + duration)
+    oscillator.connect(gain)
+    oscillator.start(now)
+    oscillator.stop(now + duration + 0.01)
+    oscillator.onended = () => { oscillator.disconnect(); gain.disconnect() }
   }
-
-  /** 兼容旧调用：v9 不再有 AudioContext 需要解锁 */
-  unlock(): void {}
-
-  setEnabled(_value: boolean): void {
-    void _value
+  unlock(): void {
+    if (!this.sfxEnabled) return
+    this.sfx ??= new AudioContext()
+    if (this.sfx.state === 'suspended') void this.sfx.resume().catch(() => {})
   }
-
-  /** 兼容旧调用：v9 没有 hover 音，自然也不需要"拖动期间静音" */
-  muteHover(_value: boolean): void {
-    void _value
-  }
+  setEnabled(value: boolean): void { this.sfxEnabled = value }
+  muteHover(value: boolean): void { this.hoverMuted = value }
 
   /** 兼容旧的加载页清单：v9 没有 UI 音效素材需要预加载 */
   cueSources(): string[] {
@@ -344,3 +346,6 @@ class AudioManager {
 }
 
 export const audio = new AudioManager()
+
+window.addEventListener('pointerdown', () => audio.unlock(), {passive:true})
+window.addEventListener('keydown', () => audio.unlock(), {passive:true})

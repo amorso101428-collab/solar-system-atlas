@@ -24,6 +24,13 @@ interface Props {
   tick?: number
   /** 字符锁定时的轻微电子声（v6 §7：字符跳动也是音效事件） */
   sound?: boolean
+  /**
+   * 字符锁定那一刻的"跳动"时长（秒），0 = 不跳（用户 2026-09-25）。
+   *
+   * 动效本身交给 CSS：每个字符拿自己的 `animation-delay`（= 它的锁定时刻），
+   * 于是排列整齐的逐字跳动和逐字解码严格同拍，不需要每帧写样式。
+   */
+  bounce?: number
 }
 
 export function CharacterRevealText({
@@ -35,6 +42,7 @@ export function CharacterRevealText({
   scrambleChars = DEFAULT_SCRAMBLE,
   tick = 34,
   sound = true,
+  bounce = 0,
 }: Props) {
   const [display, setDisplay] = useState<string[]>(() => text.split(''))
   const displayRef = useRef<string[]>(display)
@@ -112,7 +120,12 @@ export function CharacterRevealText({
            */
           className={`decode-char${char === text[index] ? ' is-final' : ''}${
             char === ' ' ? ' is-space' : ''
-          }`}
+          }${bounce > 0 ? ' is-bounce' : ''}`}
+          style={
+            bounce > 0
+              ? { animationDelay: `${(startAt + index * stagger + charDuration).toFixed(3)}s` }
+              : undefined
+          }
           aria-hidden="true"
         >
           {char}

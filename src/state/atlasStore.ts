@@ -1,3 +1,4 @@
+import { useExperience } from './experience'
 import { create } from 'zustand'
 import type { Locale } from '../i18n'
 import { parentOfObject, CURRENT_YEAR, FIRST_LAUNCH_YEAR } from '../data/objects'
@@ -80,6 +81,13 @@ interface AtlasState {
   /** 新手引导是否已看过（v6 §11） */
   onboardingDone: boolean
   view: SceneView
+  /**
+   * 「退出实时位置后回到哪个视图」（用户 2026-09-25）。
+   *
+   * 实时位置是个开关：打开时看真实日心黄经，关掉时应该回到**打开之前**那个视图。
+   * 旧版关掉时硬写 SIDE，于是从三维排列点一下实时位置再关掉，人就被丢回侧视图。
+   */
+  schematicView: SceneView
   positionMode: PositionMode
   /** 轨道面是否仍是正对镜头的 ATLAS 姿态 */
   atlasPose: boolean
@@ -177,6 +185,7 @@ export const useAtlasStore = create<AtlasState>((set) => ({
   catalogClass: 'ALL',
   onboardingDone: false,
   view: 'SIDE',
+  schematicView: 'SIDE',
   positionMode: 'SCHEMATIC',
   atlasPose: true,
   unfoldLevel: 0,
@@ -423,6 +432,13 @@ export const useAtlasStore = create<AtlasState>((set) => ({
     set((state) => ({
       positionMode: kind === 'REAL' ? ('REAL' as PositionMode) : ('SCHEMATIC' as PositionMode),
       view: kind === 'SIDE' ? ('SIDE' as SceneView) : ('ORBIT3D' as SceneView),
+      // 记住"非实时"时用的是哪个视图；退出实时位置时回到它，而不是一律回侧视
+      schematicView:
+        kind === 'REAL'
+          ? state.schematicView
+          : kind === 'SIDE'
+            ? ('SIDE' as SceneView)
+            : ('ORBIT3D' as SceneView),
       atlasPose: kind === 'SIDE',
       /**
        * v7 §1：**绝不能**把实时全览映射到 DEEP。
@@ -473,3 +489,60 @@ export const useAtlasStore = create<AtlasState>((set) => ({
   setSheetState: (sheetState) => set({ sheetState }),
   setTimelineExpanded: (timelineExpanded) => set({ timelineExpanded }),
 }))
+
+// Preserve the exact view the user left, including nested focus navigation.
+const focusHistory: Array<{ token: number; state: Partial<AtlasState>; annotations: boolean; context: boolean }> = []
+let focusToken = 0
+const original = { ...useAtlasStore.getState() }
+function saveFocusView() {
+  const s = useAtlasStore.getState()
+  const { mode, focusKind, focusId, selectedObjectId, archiveOpen, view, viewLayer,
+    positionMode, atlasPose, hideArtificial, hideMoons, hidePlanetOrbits, hideAllOrbits,
+    /**
+     * 面板开合也要一起记（用户 2026-09-25）：从任务图鉴里点进一份档案，
+     * 关掉档案时应该回到那张**列表**，而不是回到一个被收起来的空图谱；
+     * 反过来，没经过列表就直接进来的，关掉时也不该凭空冒出目录。
+     */
+    catalogPanelOpen, catalogVisible } = s
+  const token = ++focusToken
+  const e = useExperience.getState()
+  focusHistory.push({ token, state: { mode, focusKind, focusId, selectedObjectId, archiveOpen,
+    view, viewLayer, positionMode, atlasPose, hideArtificial, hideMoons, hidePlanetOrbits, hideAllOrbits,
+    catalogPanelOpen, catalogVisible },
+    annotations: e.annotations, context: e.context })
+  window.dispatchEvent(new CustomEvent('atlas-focus-save', { detail: token }))
+}
+function restoreFocusView(all = false): boolean {
+  const saved = all ? focusHistory[0] : focusHistory[focusHistory.length - 1]
+  if (!saved) return false
+  if (all) focusHistory.length = 0
+  else focusHistory.pop()
+  useAtlasStore.setState({ ...saved.state, cameraState: 'RETURNING', searchOpen: false, mobileMenuOpen: false })
+  requestOrbitPose(saved.state.atlasPose ? 0 : 1)
+  requestPositionPose(saved.state.positionMode === 'REAL' ? 1 : 0)
+  useExperience.setState({ annotations: saved.annotations, context: saved.context, orbit: false, observation: null })
+  window.dispatchEvent(new CustomEvent('atlas-focus-restore', { detail: saved.token }))
+  return true
+}
+function prepareBodyFocus() {
+  useExperience.setState({ annotations: true, context: true, orbit: false, observation: null })
+  useAtlasStore.setState({ hideAllOrbits: false, hidePlanetOrbits: false, hideMoons: false, hideArtificial: false })
+}
+useAtlasStore.setState({
+  /**
+   * **天体（行星 / 卫星 / 区域 / 彗星）换一颗 = 开一段新的浏览分支**（用户 2026-09-25）。
+   *
+   * 之前是从"卫星档案"里点进它的行星，关闭行星档案会顺着历史退回到那颗卫星的档案——
+   * 用户要的是"关闭行星详情 = 全部关掉"。所以天体聚焦不再压历史，直接清空，
+   * 关闭时自然回到图谱。任务档案（航天器）仍然压历史：它们属于"任务图鉴"那一层，
+   * 关掉要回到列表。
+   */
+  focusPlanet: id => { focusHistory.length = 0; prepareBodyFocus(); original.focusPlanet(id) },
+  focusMoon: id => { focusHistory.length = 0; prepareBodyFocus(); original.focusMoon(id) },
+  focusRegion: id => { focusHistory.length = 0; original.focusRegion(id) },
+  focusComet: id => { focusHistory.length = 0; original.focusComet(id) },
+  select: id => { if (id) { if (useAtlasStore.getState().focusId !== id) saveFocusView(); original.select(id) } else if (!restoreFocusView(true)) original.select(null) },
+  back: () => { if (!restoreFocusView()) original.back() },
+  returnToAtlas: () => { if (!restoreFocusView(true)) original.returnToAtlas() },
+  goHome: () => { focusHistory.length = 0; window.dispatchEvent(new Event('atlas-focus-clear')); original.goHome() },
+})

@@ -1,3 +1,7 @@
+import { BodyObservation } from './BodyObservation'
+import { ArchiveContents } from './ArchiveContents'
+import { anchoredFeature } from '../data/surfaceRegistration'
+import { KnowledgeReader } from './KnowledgeReader'
 import { useMemo, useState } from 'react'
 import { PLANET_BY_ID } from '../data/planets'
 import { OBJECTS } from '../data/objects'
@@ -105,6 +109,8 @@ export function BodyArchive({ kind, id }: { kind: 'PLANET' | 'MOON'; id: string 
       </div>
 
       <div className="archive__rule" />
+      <BodyObservation id={id} />
+      <ArchiveContents identity={id} />
 
       {/* v9 §10：详情页是"科普文章"，不是卡片——开头先给一段导语 */}
       {article ? (
@@ -158,23 +164,7 @@ export function BodyArchive({ kind, id }: { kind: 'PLANET' | 'MOON'; id: string 
         </section>
       ) : null}
 
-      {/* v9 §11：长文分节，默认只展开第一节（progressive disclosure） */}
-      {article ? (
-        <section className="archive__section">
-          <h4>{pickText({ zh: '深度档案', en: 'LONG-FORM ARCHIVE' })}</h4>
-          <div className="archive__article">
-            {article.sections.map((section, index) => (
-              <details key={section.id} open={index === 0}>
-                <summary>
-                  <span>{language === 'zh' ? section.title.zh : section.title.en}</span>
-                  <em>{String(index + 1).padStart(2, '0')}</em>
-                </summary>
-                <p>{language === 'zh' ? section.body.zh : section.body.en}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <KnowledgeReader key={id} id={id} />
 
       {article?.timeline?.length ? (
         <section className="archive__section">
@@ -213,10 +203,10 @@ export function BodyArchive({ kind, id }: { kind: 'PLANET' | 'MOON'; id: string 
               <li key={feature.id}>
                 <b>{language === 'zh' ? feature.nameCn : feature.name}</b>
                 <span>{language === 'zh' ? feature.meta.zh : feature.meta.en}</span>
-                <em>
-                  {feature.lat.toFixed(1)}°{feature.lat >= 0 ? 'N' : 'S'} /{' '}
+                {anchoredFeature(id, feature) && id !== 'jupiter' ? <em>
+                  {Math.abs(feature.lat).toFixed(1)}°{feature.lat >= 0 ? 'N' : 'S'} /{' '}
                   {Math.abs(feature.lon).toFixed(1)}°{feature.lon >= 0 ? 'E' : 'W'}
-                </em>
+                </em> : <em>{language==='zh' ? (id==='jupiter' && feature.id==='great-red-spot' ? '贴图影像位置 · 非实时经度' : '结构说明 · 非固定地表坐标') : 'Illustrated feature · not a fixed surface coordinate'}</em>}
               </li>
             ))}
           </ul>

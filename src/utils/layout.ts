@@ -3,7 +3,7 @@ import { PLANETS, SUN } from '../data/planets'
 import { OBJECTS } from '../data/objects'
 import type { MoonDef, PlanetDef, SpaceObject, SystemId } from '../data/types'
 import { diskFrame, type DiskFrame } from './diskFrame'
-import { ATLAS_OUTER_RADIUS, mapAuToVisual } from '../astronomy/visualScale'
+import { ATLAS_OUTER_RADIUS, ORBIT_SCALE, mapAuToVisual } from '../astronomy/visualScale'
 import { axisQuaternion } from '../astronomy/orientation'
 import {
   moonInclinationDeg,
@@ -14,6 +14,7 @@ import {
   realInclinationDeg,
   realNodeDeg,
   realPlane,
+  spacingScale,
 } from './orbitPose'
 
 // 图谱布局引擎。
@@ -205,7 +206,7 @@ export function planetPosition(
       Math.sin(real.lat) * r,
       Math.sin(real.lon) * r
     )
-    return target
+    return applySpacing(target)
   }
 
   const theta = orbitAngle(planet, t)
@@ -226,6 +227,19 @@ export function planetPosition(
     const height = THREE.MathUtils.lerp(target.y, Math.sin(real.lat) * r, blend)
     target.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius)
   }
+  return applySpacing(target)
+}
+
+/**
+ * 横向紧凑尺度（用户 2026-09-25，见 orbitPose.spacingPose）。
+ *
+ * 只压 x / z，不动 y：侧视排列里黄道面合成一条线，横向收紧就是"行星靠近了"，
+ * 而轨道倾角带来的高度原样保留，行星因此永远坐在自己的轨道线上。
+ */
+function applySpacing(target: THREE.Vector3): THREE.Vector3 {
+  const spacing = spacingScale()
+  target.x *= spacing
+  target.z *= spacing
   return target
 }
 
@@ -411,10 +425,12 @@ function seededShell(
 
 // 深空探测器：真实顺序 x 更远的横向跨度，形成"飞出太阳系"的阅读方向
 function deepPosition(index: number): THREE.Vector3 {
-  const x = 134 + index * 9
-  const y = Math.sin(index * 1.7) * 4
-  const z = Math.cos(index * 1.1) * 8 - index * 0.4
-  return new THREE.Vector3(x, y, z)
+  // 与轨道同一个尺度（ORBIT_SCALE）：否则放大轨道之后，探测器会落在土星与天王星之间
+  const x = (134 + index * 9) * ORBIT_SCALE
+  const y = Math.sin(index * 1.7) * 4 * ORBIT_SCALE
+  const z = (Math.cos(index * 1.1) * 8 - index * 0.4) * ORBIT_SCALE
+  // 与行星同一条紧凑尺度：侧视收紧时，探测器跟着行星一起靠拢
+  return applySpacing(new THREE.Vector3(x, y, z))
 }
 
 /**
@@ -888,8 +904,8 @@ export function computeLayout(t: number, frame: DiskFrame = diskFrame, year = 20
       for (let i = 0; i <= 72; i++) {
         const k = i / 72
         const point = new THREE.Vector3().lerpVectors(origin, position, k)
-        point.y += Math.sin(k * Math.PI) * 7
-        point.z += Math.sin(k * Math.PI) * 16 * (index % 2 === 0 ? 1 : -1)
+        point.y += Math.sin(k * Math.PI) * 7 * ORBIT_SCALE
+        point.z += Math.sin(k * Math.PI) * 16 * ORBIT_SCALE * (index % 2 === 0 ? 1 : -1)
         trajectory.push(point)
       }
       trajectories.push(trajectory)

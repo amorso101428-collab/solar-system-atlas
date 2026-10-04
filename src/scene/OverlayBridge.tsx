@@ -9,10 +9,11 @@ import { getCatalogStats } from './EarthCatalog'
 import { getWorld, objectWeight } from '../utils/world'
 import { smoothYear, worldNow } from '../utils/clock'
 import { useAtlasStore } from '../state/atlasStore'
+import { useExperience } from '../state/experience'
 import { yearOf } from '../utils/formatters'
 import { BELT_RANGE, KUIPER_RANGE, OORT_RANGE } from '../utils/layout'
 import { COMETS } from '../data/comets'
-import { cometPosition, cometSunDistance } from '../astronomy/cometOrbit'
+import { cometDisplayPosition, cometSunDistance } from '../astronomy/cometOrbit'
 import { satelliteVisibility } from '../utils/reveal'
 import { getLayoutMode } from '../responsive/device'
 import { adaptiveQuality } from '../performance/AdaptiveQualityManager'
@@ -170,9 +171,11 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
     const atlasOverview = useAtlasStore.getState().focusKind === 'ATLAS'
     /** 触屏布局（手机 / 平板）：标签排布更严；桌面保持 V1 原样 */
     const touchLayout = getLayoutMode() !== 'desktop'
-    const artificialHidden = hideArtificial || hideAllOrbits
+    const bodyFocus = ['PLANET','MOON'].includes(useAtlasStore.getState().focusKind)
+    const cleanBody = bodyFocus && !useExperience.getState().context
+    const artificialHidden = hideArtificial || hideAllOrbits || cleanBody
     // 自然卫星被隐藏时，它们的标签与命中区一起退场（v6 §13）
-    const moonsHidden = useAtlasStore.getState().hideMoons
+    const moonsHidden = useAtlasStore.getState().hideMoons || cleanBody
     const filter = FILTER_BY_ID.get(activeFilter)
     // 正交相机：可见世界高度才是"离得多近"的度量
     const viewHeight = (camera.top - camera.bottom) / (camera.zoom || 1)
@@ -215,6 +218,10 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
     const planetLabels: Array<{ x: number; dy: number }> = []
     for (let index = 0; index < world.layout.planets.length; index++) {
       const anchor = world.layout.planets[index]!
+      if (cleanBody && !(useAtlasStore.getState().focusKind === 'PLANET' && useAtlasStore.getState().focusId === anchor.planet.id)) {
+        layer.update(`planet:${anchor.planet.id}`, 0, 0, 0, 0, 0)
+        continue
+      }
       const { x, y, visible } = project(anchor.position)
       const onScreen = visible && x > -140 && x < size.width + 140 && y > -90 && y < size.height + 90
       const screenRadius = screenRadiusOf(anchor.planet.radius)
@@ -548,7 +555,7 @@ export function OverlayBridge({ containerId = 'label-layer' }: { containerId?: s
       // v7 §13：彗星位置跟着**平滑年份**走，拖时间轴时是连续滑动
       const year = smoothYear()
       for (const comet of COMETS) {
-        const position = cometPosition(comet, year)
+        const position = cometDisplayPosition(comet, year)
         const { x, y, visible } = project(position)
         const onScreen =
           visible && x > -140 && x < size.width + 140 && y > -90 && y < size.height + 90

@@ -1,6 +1,8 @@
+import { FlightDeck } from './FlightDeck'
 import { useEffect, useRef } from 'react'
 import { audio } from '../audio/audioManager'
-import { CATEGORY_FILTERS } from '../data/filters'
+import { CATEGORY_FILTERS, categoryLabel } from '../data/filters'
+import { WORLDS } from '../data/worlds'
 import { useT } from '../i18n'
 import { useAtlasStore, type SceneArrangement } from '../state/atlasStore'
 import { useDeviceClass } from '../responsive/useDevice'
@@ -32,6 +34,10 @@ export function MobileMenu() {
   const objectCategory = useAtlasStore((state) => state.objectCategory)
   const setObjectCategory = useAtlasStore((state) => state.setObjectCategory)
   const setFilter = useAtlasStore((state) => state.setFilter)
+  const focusPlanet = useAtlasStore((state) => state.focusPlanet)
+  const language = useAtlasStore((state) => state.language)
+  const focusKind = useAtlasStore((state) => state.focusKind)
+  const focusId = useAtlasStore((state) => state.focusId)
   const hideArtificial = useAtlasStore((state) => state.hideArtificial)
   const hideMoons = useAtlasStore((state) => state.hideMoons)
   const hideAllOrbits = useAtlasStore((state) => state.hideAllOrbits)
@@ -121,6 +127,7 @@ export function MobileMenu() {
                 onChange={(event) => {
                   audio.emit(event.target.checked ? 'toggle.on' : 'toggle.off')
                   toggle(event.target.checked)
+                  close()
                 }}
               />
               {t(key)}
@@ -129,7 +136,8 @@ export function MobileMenu() {
         </section>
 
         <section className="mobilemenu__group">
-          <h4>{t('nav.objects')}</h4>
+          <FlightDeck onAction={close} />
+            <h4>{t('nav.objects')}</h4>
           <div className="mobilemenu__chips">
             {CATEGORY_FILTERS.map((filter) => (
               <button
@@ -143,7 +151,29 @@ export function MobileMenu() {
                   setFilter(filter.id)
                 }}
               >
-                {t(`category.${filter.id}` as never) ?? filter.label}
+                {categoryLabel(filter.id, useAtlasStore.getState().language)}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* 天体选择（与桌面导航条的「天体」同一份清单、同一条聚焦路径） */}
+        <section className="mobilemenu__group">
+          <h4>{t('nav.worlds')}</h4>
+          <div className="mobilemenu__chips">
+            {WORLDS.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                className="mobilemenu__chip"
+                aria-pressed={focusKind === 'PLANET' && focusId === entry.id}
+                onClick={() => {
+                  audio.emit('object.focus')
+                  focusPlanet(entry.id)
+                  close()
+                }}
+              >
+                {language === 'zh' ? entry.cn : entry.en}
               </button>
             ))}
           </div>

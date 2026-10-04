@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { CometDef } from '../data/comets'
 import { mapAuToVisualSmooth } from './visualScale'
+import { spacingScale } from '../utils/orbitPose'
 
 /**
  * 彗星轨道（v5 §14）。
@@ -54,6 +55,25 @@ function toWorld(
 export function cometPosition(comet: CometDef, year: number, out = new THREE.Vector3()): THREE.Vector3 {
   const { nu, rAu } = solve(comet, year)
   return toWorld(comet, rAu, nu, out)
+}
+
+/**
+ * 彗星的**显示**位置：在视觉坐标上再叠一层横向紧凑尺度
+ * （用户 2026-09-25，见 orbitPose.spacingPose）。
+ *
+ * 轨道线那一边由 Comets 的整组缩放到同一个倍率负责；标记、聚焦、
+ * 悬停判定都必须走这个函数，否则彗星会离开自己那条线。
+ */
+export function cometDisplayPosition(
+  comet: CometDef,
+  year: number,
+  out = new THREE.Vector3()
+): THREE.Vector3 {
+  const spacing = spacingScale()
+  cometPosition(comet, year, out)
+  out.x *= spacing
+  out.z *= spacing
+  return out
 }
 
 /** 生成整条轨道曲线（高偏心率的椭圆，不是圆） */

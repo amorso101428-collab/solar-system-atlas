@@ -1,3 +1,7 @@
+import { earthRotationDays } from '../astronomy/liveOrbits'
+import { anchoredFeature, textureCoordinates } from '../data/surfaceRegistration'
+import { surfaceDirection } from '../utils/surfaceCoordinates'
+import { useExperience } from '../state/experience'
 import { useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -63,13 +67,7 @@ const holoRingMaterial = new THREE.LineBasicMaterial({
  * 而不是在屏幕空间里悬着——这正是用户要的"贴在球形贴图上"。
  */
 function buildSurfaceRing(lat: number, lon: number, sizeDeg: number, radius: number): THREE.BufferGeometry {
-  const latRad = lat * DEG
-  const lonRad = lon * DEG
-  const center = new THREE.Vector3(
-    Math.cos(latRad) * Math.cos(lonRad),
-    Math.sin(latRad),
-    Math.cos(latRad) * Math.sin(lonRad)
-  ).normalize()
+  const center = surfaceDirection(lat, lon)
   const helper = Math.abs(center.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0)
   const t1 = new THREE.Vector3().crossVectors(center, helper).normalize()
   const t2 = new THREE.Vector3().crossVectors(center, t1).normalize()
@@ -117,7 +115,7 @@ export function HoloBridge() {
      * 桌面与 iPad 不受影响（仍是全量）。
      */
     const holoLimit = isPhoneLayout() ? 3 : Number.POSITIVE_INFINITY
-    const features = bodyId ? (SURFACE_FEATURES[bodyId] ?? []).slice(0, holoLimit) : []
+    const features = bodyId ? (SURFACE_FEATURES[bodyId] ?? []).filter(f => anchoredFeature(bodyId,f)).slice(0, holoLimit) : []
     const layers = bodyId ? (BODY_LAYERS_FULL[bodyId] ?? []).slice(0, holoLimit) : []
 
     const hideAll = () => {
@@ -132,7 +130,7 @@ export function HoloBridge() {
       if (rulerRef.current) rulerRef.current.style.opacity = '0'
       if (captionRef.current) captionRef.current.style.opacity = '0'
     }
-    if (!bodyId || (features.length === 0 && layers.length === 0)) {
+    if (!useExperience.getState().annotations || useExperience.getState().immersive || !bodyId || (features.length === 0 && layers.length === 0)) {
       hideAll()
       return
     }
@@ -156,7 +154,7 @@ export function HoloBridge() {
     const moonDef = moonEntry?.moon
     const radius = bodyId === 'sun' ? SUN_RADIUS : (planetDef?.radius ?? moonDef?.radius ?? 0.5)
     const orientation = planetDef?.orientation ?? moonDef?.orientation
-    const days = daysSinceJ2000(smoothYear())
+    const days = planetDef?.id === 'earth' ? earthRotationDays(smoothYear()) : daysSinceJ2000(smoothYear())
     let spinY = 0
     if (planetDef && orientation) {
       spinY = spinAngle(orientation, days)
@@ -187,6 +185,10 @@ export function HoloBridge() {
     const toCamera = new THREE.Vector3()
     const used = new Set<string>()
 
+    const labelWidth = isPhoneLayout() ? 145 : 218
+    const panelLeft = document.querySelector('.archive')?.getBoundingClientRect().left ?? size.width
+    const labelRight = isTouchLayout(getLayoutMode()) ? size.width-16 : Math.max(260,panelLeft-18)
+    const placed: Array<{x:number;y:number}> = []
     features.forEach((feature: SurfaceFeature, index) => {
       const key = `${bodyId}:${feature.id}`
       used.add(key)
@@ -195,9 +197,8 @@ export function HoloBridge() {
         node = createFeatureNode(container, feature)
         nodes.current.set(key, node)
       }
-      const lat = feature.lat * DEG
-      const lon = feature.lon * DEG
-      dir.set(Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon))
+      const registered = textureCoordinates(bodyId, feature)
+      surfaceDirection(registered.lat, registered.lon, dir)
       dir.applyQuaternion(toWorld).normalize()
       point.copy(anchor.position).addScaledVector(dir, radius * 1.004)
       toCamera.copy(camera.position).sub(point).normalize()
@@ -210,7 +211,7 @@ export function HoloBridge() {
        * 触屏设备把标签的落点夹在可视区内，引线仍然从球面锚点画出去。
        */
       const rawX = (projected.x * 0.5 + 0.5) * size.width
-      const x = usesTopInset() ? Math.min(Math.max(rawX, 12), size.width - 154) : rawX
+      const x = rawX
       const y = (-projected.y * 0.5 + 0.5) * size.height
 
       node.root.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`
@@ -233,8 +234,8 @@ export function HoloBridge() {
         }
         if (!ring) {
           const geometry = buildSurfaceRing(
-            feature.lat,
-            feature.lon,
+            registered.lat,
+            registered.lon,
             feature.sizeDeg,
             wantedRadius
           )
@@ -258,9 +259,20 @@ export function HoloBridge() {
        * 之前两侧交替 + 数据尺也在右侧，结果标签和数据尺互相压字。
        * 竖向用 index 做一点错位，避免同纬度的几条挤在一起。
        */
-      const stagger = (index % 3) * 12 - 12
-      node.leader.style.transform = 'scaleX(-1)'
-      node.label.style.transform = `translate3d(calc(-100% - 44px), ${(stagger + 10).toFixed(0)}px, 0)`
+      const labelX = THREE.MathUtils.clamp(x < centerX ? x-labelWidth-35 : x+35, 16, labelRight-labelWidth)
+      let labelY = THREE.MathUtils.clamp(y-16, usesTopInset()?150:135, size.height-240)
+      for(const prev of placed) if(Math.abs(prev.x-labelX)<labelWidth && Math.abs(prev.y-labelY)<55) labelY=prev.y+56
+      const onScreen = rawX>0 && rawX<labelRight && y>100 && y<size.height-160 && labelY<size.height-190
+      node.root.style.opacity = (onScreen ? visible*.95 : 0).toFixed(3)
+      if(visible>.1 && onScreen)placed.push({x:labelX,y:labelY})
+      const endX=labelX>x ? labelX-7 : labelX+labelWidth+7
+      const endY=labelY+9
+      const dx=endX-x,dy=endY-y
+      node.leader.style.width=`${Math.hypot(dx,dy).toFixed(1)}px`
+      node.leader.style.transform=`rotate(${Math.atan2(dy,dx)}rad)`
+      node.label.style.width=`${labelWidth}px`
+      node.label.style.transform=`translate3d(${(labelX-x).toFixed(1)}px,${(labelY-y).toFixed(1)}px,0)`
+
     })
 
     nodes.current.forEach((node, key) => {

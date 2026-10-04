@@ -4,6 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { PERF_MAX_DPR } from '../utils/perf'
 import { createGpuTimer, gpuStats } from '../utils/perfSampler'
@@ -60,6 +61,7 @@ export function PostFX() {
     bloomRef.current = bloom
     instance.addPass(bloom)
     instance.addPass(new OutputPass())
+    instance.addPass(new SMAAPass())
     /**
      * v9 §23：让 `renderer.info` 累计整帧的所有 pass。
      * 默认每条 render() 都会把统计清零，后处理链跑完后只剩 OutputPass 的 1 次调用；
@@ -95,6 +97,11 @@ export function PostFX() {
     gpuStats.renderTargetBytes = Math.round(pixels * 8 * 2 + pixels * 8 * 0.33)
   }, [composer, gl, size.height, size.width, dpr, quality])
 
+  useEffect(() => () => {
+    composer.passes.forEach(pass => pass.dispose())
+    composer.dispose()
+  }, [composer])
+
   // priority 1：接管渲染，R3F 不再自己绘制场景
   useFrame(() => {
     gl.info.reset()
@@ -103,8 +110,9 @@ export function PostFX() {
      * §12 第 9 步：后处理整体关掉之后直接渲染主场景。
      * 这不是"降级到糊"，而是先走完前面 8 步之后的最后手段。
      */
-    if (quality.postFx) composer.render()
-    else gl.render(scene, camera)
+    // Preserve silhouette antialiasing even when the adaptive tier disables bloom.
+    if (bloomRef.current) bloomRef.current.enabled = quality.postFx
+    composer.render()
     timer.end()
   }, 1)
 

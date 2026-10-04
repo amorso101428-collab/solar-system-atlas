@@ -76,10 +76,19 @@ export function spinAngle(orientation: BodyOrientation, days: number): number {
   return THREE.MathUtils.degToRad(((deg % 360) + 360) % 360)
 }
 
+/** 潮汐锁定求解用的临时对象（每帧每颗卫星都会调用，不能在这里分配） */
+const lockAxis = new THREE.Vector3()
+const lockFrame = new THREE.Quaternion()
+
 /**
  * 潮汐锁定天体（月球、冥卫一…）的姿态：
  * 本初子午线永远朝向母体，也就是"永远同一面朝着行星"。
- * 这里直接求解：把本地 +X（本初子午线方向）转到指向母体的方向。
+ *
+ * 解法：先把"指向母体"的方向**转回本地坐标系**（本地 +Y = 自转轴、本地 +X = 本初子午线），
+ * 再解 R_y(θ)·X̂ = v，即 θ = atan2(-v.z, v.x)。
+ *
+ * 旧实现直接在"极轴基底"里取方位角，等于忽略了 axisQuaternion 自带的那个扭转。
+ * 实测每 45° 采样一次，误差恒定为 90°：月球冲着地球的是东边缘，月海被转到侧面去了。
  */
 export function tidalLockSpin(
   orientation: BodyOrientation,
@@ -87,16 +96,13 @@ export function tidalLockSpin(
   parentPosition: THREE.Vector3,
   out = new THREE.Vector3()
 ): number {
-  const axis = poleToWorld(orientation, new THREE.Vector3())
-  // 母体方向在"垂直于自转轴的平面"上的投影
+  const axis = poleToWorld(orientation, lockAxis)
+  // 母体方向在"垂直于自转轴的平面"上的投影：自转只能在这个平面内解决
   const toParent = out.subVectors(parentPosition, bodyPosition)
   toParent.addScaledVector(axis, -toParent.dot(axis))
   if (toParent.lengthSq() < 1e-8) return 0
   toParent.normalize()
-  // 以极轴为参考，计算该方向在赤道面内的方位角
-  const reference = new THREE.Vector3(1, 0, 0)
-  if (Math.abs(reference.dot(axis)) > 0.9) reference.set(0, 0, 1)
-  const tangent = new THREE.Vector3().crossVectors(axis, reference).normalize()
-  const bitangent = new THREE.Vector3().crossVectors(axis, tangent).normalize()
-  return Math.atan2(toParent.dot(bitangent), toParent.dot(tangent))
+  const local = toParent.applyQuaternion(axisQuaternion(orientation, lockFrame).invert())
+  // 本地 +X 是本初子午线，而 R_y(θ)(1,0,0) = (cosθ, 0, -sinθ)
+  return Math.atan2(-local.z, local.x)
 }

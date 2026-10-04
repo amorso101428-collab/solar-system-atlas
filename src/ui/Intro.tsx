@@ -30,7 +30,17 @@ export function Intro() {
   const enterAtlas = useAtlasStore((state) => state.enterAtlas)
   const [stage, setStage] = useState(0)
   const [ready, setReady] = useState(false)
+  /**
+   * 标题的"重播"计数（用户 2026-09-25）：点一下标题就把它当 key 递进去，
+   * 逐字解码 + 字符跳动整套重来一次。局部 state，不碰 store。
+   */
+  const [titleRun, setTitleRun] = useState(0)
   const t = useT()
+
+  const replayTitle = () => {
+    audio.emit('button.click')
+    setTitleRun((run) => run + 1)
+  }
 
   useEffect(() => {
     if (mode !== 'INTRO') return
@@ -59,8 +69,26 @@ export function Intro() {
 
       <div className="intro__inner">
         <div className="intro__edition">{t('intro.edition')}</div>
-        <h1 className="intro__title">
-          <CharacterRevealText text="HUMAN ARTIFACTS" startAt={0.34} stagger={0.036} />
+        <h1
+          className="intro__title"
+          role="button"
+          tabIndex={ready ? 0 : -1}
+          title={t('intro.titleReplay')}
+          onClick={replayTitle}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              replayTitle()
+            }
+          }}
+        >
+          <CharacterRevealText
+            key={titleRun}
+            text="HUMAN ARTIFACTS"
+            startAt={0.34}
+            stagger={0.036}
+            bounce={0.46}
+          />
         </h1>
         <div className="intro__rule" />
         <p className="intro__sub">

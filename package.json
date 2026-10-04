@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit",
-    "deploy:pages": "npm run build && npx wrangler pages deploy dist --project-name=solar-system-atlas --branch=main --commit-dirty=true"
+    "deploy:pages": "npm run build && npx --yes wrangler@4.138.0 pages deploy dist --project-name=solar-system-atlas --branch=main --commit-dirty=true"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

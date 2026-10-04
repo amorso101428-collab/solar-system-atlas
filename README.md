@@ -1121,3 +1121,9 @@ tools/
 1. 接入 JPL Horizons 真实星历，让 Voyager / New Horizons 的位置来自观测数据。
 2. 在轨目录接入历史快照，让时间轴真的回到"1975 年的天空"。
 3. 给 20~30 个重要性 1 的对象补真实 GLB 模型，替代现在的剪影标记。
+
+---
+
+## 许可证
+
+项目源码采用 [MIT License](LICENSE) 发布。第三方图片、纹理、音乐与数据仍遵循各自的授权条款，详见数据来源与 `public/audio/ATTRIBUTIONS.md`。

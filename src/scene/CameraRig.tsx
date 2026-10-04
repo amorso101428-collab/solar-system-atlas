@@ -1,3 +1,4 @@
+import { useExperience } from '../state/experience'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -6,20 +7,24 @@ import { advanceTime, worldNow } from '../utils/clock'
 import { advanceYear, smoothYear } from '../utils/clock'
 import { getWorld } from '../utils/world'
 import { applyDiskFrame, SIDE_VIEW_PITCH, SIDE_VIEW_YAW } from '../utils/diskFrame'
-import { ATLAS_OUTER_RADIUS, DISK_RADIUS, REGIONS } from '../utils/layout'
+import { ATLAS_OUTER_RADIUS, DISK_RADIUS, REGIONS, SUN_RADIUS } from '../utils/layout'
 import {
+  advanceSpacing,
   advanceOrbitPose,
   advancePositionPose,
+  snapSpacing,
+  SPACING_COMPACT,
   requestPositionPose,
   setOrbitPoseImmediate,
   setPositionPoseImmediate,
+  spacingScale,
   orbitPose,
   requestOrbitPose,
   UNFOLD_DURATION,
 } from '../utils/orbitPose'
 import { PLANET_BY_ID } from '../data/planets'
 import { COMET_BY_ID } from '../data/comets'
-import { cometPosition } from '../astronomy/cometOrbit'
+import { cometDisplayPosition } from '../astronomy/cometOrbit'
 import type { PlanetDef, SystemId } from '../data/types'
 import { sceneReveal } from '../utils/reveal'
 import { planetDim } from '../utils/glStats'
@@ -58,6 +63,18 @@ function cloneShot(shot: Shot): Shot {
 }
 
 /**
+ * 图谱的**固定取景尺度**（用户 2026-09-25）。
+ *
+ * 侧视 / 三维 / 实时三种排列共用这一个高度：切换排列只换行星位置与轨道姿态，
+ * 镜头距离一步都不动。旧版每种排列各算一套高度（三维装整条轨道、实时装整圈），
+ * 于是"点一下实时位置"画面就先缩再放。
+ */
+function atlasFrameHeight(aspect: number): number {
+  const spanX = (ATLAS_OUTER_RADIUS + 20 + 17) * SPACING_COMPACT
+  return Math.max(spanX / Math.max(aspect, 0.42), 46)
+}
+
+/**
  * 科普排列侧视图的构图：行星排成一串、太阳在最左，最远的天体刚好落在右边缘。
  *
  * 间距由 visualScale 的分段映射决定（不是等分），所以"该大的大、该小的小"：
@@ -70,8 +87,16 @@ function atlasShot(width: number, height: number): Shot {
    * 左侧的 SOHO / PARKER SOLAR PROBE 与右侧的 PLUTO / 旅行者标签会被切掉，
    * 所以把两个边距一起放宽。
    */
-  const minX = -17
-  const maxX = ATLAS_OUTER_RADIUS + 20
+  /**
+   * **固定取景**（用户 2026-09-25）：侧视 ⇄ 三维只让轨道伸缩，镜头一律不动。
+   *
+   * 取景按**紧凑档**定死（也就是侧视里的构图，太阳在最左、冥王星轨道贴近右缘）。
+   * 切到三维时轨道往外拉长，外圈会直接伸出画面——这正是"直接拉长轨道"的观感；
+   * 相反如果让镜头跟着把整条系统装回来，就会出现一缩一放，用户明确否掉了。
+   * 想看全的时候用滚轮自己缩（滚轮依旧是用户的手动缩放）。
+   */
+  const minX = -17 * SPACING_COMPACT
+  const maxX = (ATLAS_OUTER_RADIUS + 20) * SPACING_COMPACT
   const spanX = maxX - minX
   /**
    * 宽高比下限 0.6 是给"横屏偏窄"的窗口用的；手机竖屏只有 0.46，
@@ -109,7 +134,12 @@ const TOP_PITCH = 1.42
 
 function topShot(width: number, height: number): Shot {
   const aspect = Math.max(width, 1) / Math.max(height, 1)
-  const diameter = ATLAS_OUTER_RADIUS * 2 * 1.12
+  /**
+   * 开场（主页）与图谱用**同一档紧凑尺度**（用户 2026-09-25）：
+   * 以前主页固定按真实间距取景，点"进入图谱"之后才开始收——看起来就是
+   * "先在左边、然后才放大"。现在两处同倍率，进场不再有第二次缩放。
+   */
+  const diameter = ATLAS_OUTER_RADIUS * 2 * 1.12 * spacingScale()
   const visibleHeight = diameter * Math.max(1, 1 / Math.max(aspect, 0.42))
   return {
     target: new THREE.Vector3(0, 0, 0),
@@ -120,30 +150,14 @@ function topShot(width: number, height: number): Shot {
 }
 
 /**
- * 「当前真实位置」的构图：以太阳为中心、装下整圈真实轨道。
- * 只有按下这个按钮才会进入，用完再切回科普排列（v5 §11）。
+ * 「当前真实位置」的构图（用户 2026-09-25 定版）。
+ *
+ * **与侧视 / 三维完全同一套取景**：镜头一动不动——不回到太阳、不抬俯仰、不变焦，
+ * 只把行星换成此刻真实的日心黄经。画面里"太阳在哪、行星在哪"都由数据决定，
+ * 相机不做任何补偿；外圈跑出画面就靠滚轮自己缩（滚轮始终是用户的手动缩放）。
  */
 function realPositionShot(width: number, height: number): Shot {
-  const aspect = Math.max(width, 1) / Math.max(height, 1)
-  const diameter = ATLAS_OUTER_RADIUS * 2 * 1.06
-  const visibleHeight = diameter * Math.max(1, 1 / Math.max(aspect, 0.42))
-  /**
-   * V1：手机竖屏是 0.46 的宽高比，0.58 的仰角会把整圈轨道压成一条扁椭圆；
-   * 这里抬到接近俯视，画面才是一个读得懂的"太阳系圆盘"。
-   */
-  const portraitPhone = getLayoutMode() === 'mobile-portrait'
-  const pitch = portraitPhone ? 1.12 : 0.58
-  return {
-    /**
-     * **太阳必须在画面正中**（用户反馈：切到实时全览后焦点不在太阳）。
-     * 这里绝不能借用 focusTarget 的"主体靠左"偏移——那是给行星档案用的构图，
-     * 套到"以太阳为中心的整圈轨道"上就是错的。
-     */
-    target: new THREE.Vector3(0, 0, 0),
-    height: visibleHeight,
-    yaw: SIDE_VIEW_YAW,
-    pitch,
-  }
+  return atlasShot(width, height)
 }
 
 /**
@@ -264,18 +278,20 @@ function liveAnchor(kind: FocusKind, id: string | null, t: number): LiveAnchor |
   if (kind === 'COMET') {
     const comet = COMET_BY_ID.get(id)
     if (!comet) return null
-    const position = cometPosition(comet, smoothYear())
+    const position = cometDisplayPosition(comet, smoothYear())
     return { position, parent: origin, diskRadius: 12, parentRadius: 6 }
   }
 
   if (kind === 'REGION') {
     const region = world.layout.regions.find((entry) => entry.id === id)
     if (!region) return null
+    // 三条带按紧凑尺度整体缩放，聚焦取景必须用同一个倍率
+    const spacing = spacingScale()
     return {
       position: region.center.clone(),
       parent: origin,
-      diskRadius: region.radius * 2.1,
-      parentRadius: region.radius,
+      diskRadius: region.radius * 2.1 * spacing,
+      parentRadius: region.radius * spacing,
     }
   }
 
@@ -293,7 +309,7 @@ function liveAnchor(kind: FocusKind, id: string | null, t: number): LiveAnchor |
        * 结果就是"点了月球却只看到一个小点"（v8 §25）。
        */
       const moonAnchor = world.moons.get(id as never)
-      const bodyRadius = moonAnchor?.def?.radius ?? disk.radius * 0.72
+      const bodyRadius = id === 'sun' ? SUN_RADIUS : moonAnchor?.def?.radius ?? disk.radius * 0.72
       return {
         position: disk.center,
         parent: origin,
@@ -381,7 +397,8 @@ function computeFocusShot(kind: FocusKind, anchor: LiveAnchor, aspect: number): 
 	    const PLANET_SCREEN_FRACTION = planetScreenFraction()
 	    const diameter = anchor.parentRadius * 2
 	    // 下限 1.4：再近就会撞进天体表面（月球本体只有 0.26 个视觉单位）
-	    const height = Math.max(diameter / PLANET_SCREEN_FRACTION, 1.4)
+	    const availableFraction = isTouchLayout(getLayoutMode()) ? PLANET_SCREEN_FRACTION : Math.min(PLANET_SCREEN_FRACTION, Math.max(0.22, aspect * 0.42))
+	    const height = Math.max(diameter / availableFraction, 1.4)
     /**
      * 推近行星时，镜头必须**几乎正对系统盘的法线**（只留 5° 左右的偏角）。
      * 旧版给了 +0.26 / 0.34，比盘面多转出 15° 以上，于是俯视一点点，
@@ -494,6 +511,8 @@ export function CameraRig() {
   const pointer = useRef({ x: 0, y: 0 })
   /** 用户自己缩放过之后，就不再让总览的自动构图覆盖他的尺度 */
   const manualZoom = useRef(false)
+  /** 紧凑尺度是否已经和首帧的排列对齐（对齐之后才开始播放收放动画） */
+  const spacingReady = useRef(false)
   /**
    * V1：触摸手势是否正在作用（单指旋转 / 双指缩放）。
    *
@@ -608,19 +627,21 @@ export function CameraRig() {
       manualZoom.current = true
       // v8：上限提到 760。奥尔特云的粒子壳外缘在 340 左右，
       // 必须能一次装下整层壳，"拉到最远"才看得出它包住整个太阳系。
+      // v9：整体轨道放大两倍，壳外缘跟着到 690 左右，上限同步翻倍。
       desired.current.height = THREE.MathUtils.clamp(
-        desired.current.height * Math.exp(event.deltaY * 0.0011),
+        desired.current.height * Math.exp(THREE.MathUtils.clamp(event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? size.height : 1), -180, 180) * 0.0011),
         1.5,
-        760
+        1520
       )
     }
 
     const onPointerDown = (event: PointerEvent) => {
       // 触屏设备：指针交给 GestureManager 统一识别，这里不再重复处理
       if (event.pointerType !== 'mouse' && touchGestures) return
+      useExperience.setState({ orbit: false })
       // 中键：浏览器默认会用来自动滚动，必须挡掉
       if (event.button === 1) event.preventDefault()
-      const orbiting = event.button === 2 || event.shiftKey
+      const orbiting = event.button === 2 || event.shiftKey || useExperience.getState().rotate
       drag.current = {
         active: true,
         moved: false,
@@ -665,7 +686,10 @@ export function CameraRig() {
       if (!drag.current.active) return
       const dx = event.clientX - drag.current.x
       const dy = event.clientY - drag.current.y
-      if (Math.abs(dx) + Math.abs(dy) > 3) drag.current.moved = true
+      if (Math.abs(dx) + Math.abs(dy) > 3) {
+        drag.current.moved = true
+        if(useExperience.getState().observation)useExperience.setState({observation:null})
+      }
       drag.current.x = event.clientX
       drag.current.y = event.clientY
       /**
@@ -698,14 +722,14 @@ export function CameraRig() {
         desired.current.height = THREE.MathUtils.clamp(
           desired.current.height * Math.exp(dy * 0.004),
           1.5,
-          380
+          760
         )
       } else if (drag.current.orbiting || drag.current.button === 2) {
         // 用户开始自己转视角：相机过渡立刻让位
         transition.current = null
         manualOrbit.current = true
         // 俯仰只由拖拽改变，且被夹在真实范围内；不再由指针位置逐帧累加
-        desired.current.yaw -= dx * 0.0032
+        desired.current.yaw -= dx * 0.0016
         desired.current.pitch = THREE.MathUtils.clamp(
           desired.current.pitch + dy * 0.0022,
           -1.35,
@@ -736,18 +760,46 @@ export function CameraRig() {
      */
     const onDoubleClick = () => {
       if (useAtlasStore.getState().mode === 'INTRO') return
-      manualOffset.current.set(0, 0, 0)
-      manualZoom.current = false
-      home.current = atlasBaseShot(size.width, size.height)
-      desired.current.yaw = home.current.yaw
-      desired.current.pitch = home.current.pitch
-      desired.current.height = home.current.height
+      window.dispatchEvent(new CustomEvent('atlas-camera', { detail: 'reset' }))
     }
     // 中键在浏览器里默认会触发自动滚动：这里显式挡掉，中键才是纯粹的 dolly
     const onMouseDown = (event: MouseEvent) => {
       if (event.button === 1) event.preventDefault()
     }
 
+    const onCommand = (event: Event) => {
+      const action = (event as CustomEvent<string>).detail
+      flight.current = null
+      transition.current = null
+      if (['day','terminator','night'].includes(action)) {
+        const state=useAtlasStore.getState()
+        const anchor=liveAnchor(state.focusKind,state.focusId,worldNow())
+        if(!anchor || state.focusId==='sun')return
+        const towardSun=anchor.position.clone().negate().normalize()
+        if(action==='night')towardSun.negate()
+        if(action==='terminator') {
+          const tangent = new THREE.Vector3(0,1,0).cross(towardSun)
+          if(tangent.lengthSq()<1e-6)tangent.set(1,0,0).cross(towardSun)
+          towardSun.copy(tangent.normalize())
+        }
+        useExperience.setState({observation:action as 'day'|'terminator'|'night',orbit:false})
+        const yaw=Math.atan2(towardSun.x,towardSun.z)
+        desired.current.yaw=current.current.yaw+Math.atan2(Math.sin(yaw-current.current.yaw),Math.cos(yaw-current.current.yaw))
+        desired.current.pitch=Math.asin(THREE.MathUtils.clamp(towardSun.y,-.98,.98))
+        manualOrbit.current=true
+        manualOffset.current.set(0,0,0)
+      } else if (action === 'reset') {
+        useExperience.setState({observation:null,orbit:false})
+        manualOffset.current.set(0, 0, 0)
+        manualZoom.current = false
+        manualOrbit.current = false
+        desired.current = cloneShot(home.current)
+      } else if (action === 'in' || action === 'out') {
+        manualZoom.current = true
+        desired.current.height = THREE.MathUtils.clamp(desired.current.height * (action === 'in' ? 0.8 : 1.25), 1.5, 760)
+      }
+    }
+    window.addEventListener('atlas-camera', onCommand)
     element.addEventListener('wheel', onWheel, { passive: false })
     element.addEventListener('pointerdown', onPointerDown)
     element.addEventListener('mousedown', onMouseDown)
@@ -773,6 +825,7 @@ export function CameraRig() {
     /** 手指第一次真正转动时：进入 3D（与桌面右键按下时的那一段完全同义） */
     const armTouchOrbit = () => {
       if (touchOrbitArmed.current) return
+      useExperience.setState({observation:null,orbit:false})
       touchOrbitArmed.current = true
       touchDrag.current = true
       const state = useAtlasStore.getState()
@@ -825,14 +878,14 @@ export function CameraRig() {
         transition.current = null
         /**
          * 方向必须与桌面右键拖拽完全一致：
-         *   桌面  desired.yaw -= dx * 0.0032
-         *   触摸  desired.yaw += yawDelta，而 yawDelta = -dx * 0.0032
+         *   桌面  desired.yaw -= dx * 0.0016
+         *   触摸  desired.yaw += yawDelta，而 yawDelta = -dx * 0.0016
          * 两者等式相同。V1.1 之前这里写成了 `-=`，于是手指往左拖画面往右走
          * （真机反馈的"拖动逻辑是反的"）。
          */
-        desired.current.yaw += yawDelta
+        desired.current.yaw += yawDelta * 0.5
         desired.current.pitch = THREE.MathUtils.clamp(
-          desired.current.pitch + pitchDelta,
+          desired.current.pitch + pitchDelta * 0.5,
           -1.35,
           1.35
         )
@@ -849,7 +902,7 @@ export function CameraRig() {
         desired.current.height = THREE.MathUtils.clamp(
           desired.current.height / scaleDelta,
           1.5,
-          760
+          1520
         )
       },
       onPan: (dx, dy) => {
@@ -865,6 +918,7 @@ export function CameraRig() {
       onEnd: stopTouchDrag,
     })
     return () => {
+      window.removeEventListener('atlas-camera', onCommand)
       element.removeEventListener('wheel', onWheel)
       element.removeEventListener('pointerdown', onPointerDown)
       element.removeEventListener('mousedown', onMouseDown)
@@ -875,6 +929,37 @@ export function CameraRig() {
       detachGestures()
     }
   }, [camera, gl, size.height, size.width])
+
+  const savedViews = useRef(new Map<number, Shot>())
+  useEffect(() => {
+    const save = (event: Event) => savedViews.current.set((event as CustomEvent<number>).detail, cloneShot(current.current))
+    const restore = (event: Event) => {
+      const token = (event as CustomEvent<number>).detail
+      const shot = savedViews.current.get(token)
+      if (!shot) return
+      for (const key of savedViews.current.keys()) if (key >= token) savedViews.current.delete(key)
+      const s = useAtlasStore.getState()
+      const anchor = s.focusKind === 'ATLAS' ? null : liveAnchor(s.focusKind, s.focusId, worldNow())
+      const base = anchor ? focusTarget(anchor.position, shot.height, size.width / Math.max(size.height, 1), shot.yaw, new THREE.Vector3(), shot.pitch)
+        : atlasBaseShot(size.width, size.height).target
+      manualOffset.current.copy(shot.target).sub(base)
+      manualZoom.current = true
+      manualOrbit.current = true
+      touchManualOrbit.current = true
+      transition.current = null
+      desired.current = cloneShot(shot)
+      flight.current = { from: cloneShot(current.current), to: cloneShot(shot), start: performance.now() / 1000, duration: .8, kind: 'out' }
+    }
+    const clear = () => savedViews.current.clear()
+    window.addEventListener('atlas-focus-save', save)
+    window.addEventListener('atlas-focus-restore', restore)
+    window.addEventListener('atlas-focus-clear', clear)
+    return () => {
+      window.removeEventListener('atlas-focus-save', save)
+      window.removeEventListener('atlas-focus-restore', restore)
+      window.removeEventListener('atlas-focus-clear', clear)
+    }
+  }, [size.width, size.height])
 
   // ---- 状态机 → 镜头 ----
   useEffect(() => {
@@ -919,30 +1004,21 @@ export function CameraRig() {
 
       const focusChanged = state.focusKind !== previous.focusKind || state.focusId !== previous.focusId
       if (focusChanged) debugSubs.current.focus++
-      // 切到"当前真实位置"：视口回到以太阳为中心的构图（v5 §11）
-      if (state.positionMode !== previous.positionMode) {
-        manualZoom.current = false
-        manualOffset.current.set(0, 0, 0)
+      if (!focusChanged && state.view === 'SIDE' && previous.view !== 'SIDE') {
         manualOrbit.current = false
         touchManualOrbit.current = false
-        const to =
-          state.positionMode === 'REAL'
-            ? realPositionShot(size.width, size.height)
-            : atlasBaseShot(size.width, size.height)
-        transition.current = {
-          fromYaw: current.current.yaw,
-          fromPitch: current.current.pitch,
-          fromHeight: current.current.height,
-          fromX: current.current.target.x,
-          fromZ: current.current.target.z,
-          toYaw: to.yaw,
-          toPitch: to.pitch,
-          toHeight: to.height,
-          toX: to.target.x,
-          toZ: to.target.z,
-          elapsed: 0,
-          duration: 1.2,
-        }
+      }
+
+      /**
+       * 切换"真实位置"开关时，**镜头一律不动**（用户 2026-09-25）。
+       *
+       * 旧版在这里造了一段 1.2 秒的镜头过渡，把相机拉到"以太阳为中心"的实时构图上，
+       * 于是三维视图里点一下实时位置，镜头就被掰回正侧视（俯仰被插值回 0）。
+       * 现在三种排列共用同一套取景，切换只换行星位置，相机不做任何补偿。
+       */
+      if (state.positionMode !== previous.positionMode) {
+        manualOrbit.current = false
+        touchManualOrbit.current = false
       }
       if (state.cameraState === 'FLYING_IN' && focusChanged) {
         const anchor = liveAnchor(state.focusKind, state.focusId, worldNow())
@@ -1008,6 +1084,11 @@ export function CameraRig() {
   }, [size.height, size.width])
 
   useFrame((state, delta) => {
+    if (useExperience.getState().orbit && !flight.current && !drag.current.active) {
+      manualOrbit.current = true
+      desired.current.yaw += Math.min(delta, 0.05) * 0.025
+    }
+
     const now = performance.now() / 1000
     const active = flight.current
 
@@ -1019,10 +1100,55 @@ export function CameraRig() {
     advanceYear(step)
     advanceOrbitPose(step)
     advancePositionPose(step)
+    /**
+     * 紧凑尺度（用户 2026-09-25）：目标由当前排列决定——侧视排列收紧行星间距，
+     * 三维 / 实时排列展开。放在这里推进，所有入口（菜单、深链、聚焦、回主页）
+     * 都自动跟上，不需要各自通知一次。
+     */
+    const layoutState = useAtlasStore.getState()
+    /**
+     * 主页也按同一档尺度（用户 2026-09-25）：
+     * 只有"三维 / 实时排列"才展开，其余（含开场）都是紧凑，
+     * 于是从主页进图谱不会再有第二次缩放。
+     */
+    /**
+     * 紧凑尺度什么时候生效（用户 2026-09-25 第三轮修正）。
+     *
+     * 旧条件只看排列：一旦聚焦，排列会切到三维 → 轨道在飞行途中往外胀 →
+     * 镜头在追一个还在移动的目标，于是"从主页进来第一次点聚焦会位移"
+     * （之后的聚焦已经在三维里，轨道不再变，所以只有第一次看得出来）。
+     *
+     * 现在把"正在聚焦某个天体 / 任务档案"也算作紧凑：聚焦过程中世界里
+     * 没有任何东西在移动，镜头飞过去就是最终构图。回到图谱时再按排列展开或收紧。
+     */
+    const focused = layoutState.focusKind !== 'ATLAS'
+    const compactLayout =
+      layoutState.positionMode !== 'REAL' && (layoutState.view === 'SIDE' || focused)
+    if (!spacingReady.current) {
+      spacingReady.current = true
+      snapSpacing(compactLayout)
+    } else {
+      advanceSpacing(step, compactLayout)
+    }
 
     if (active) {
       const k = THREE.MathUtils.clamp((now - active.start) / active.duration, 0, 1)
       const e = easeInOutCubic(k)
+      /**
+       * 飞行目标要**实时重算**（用户 2026-09-25：侧视里聚焦行星会先跑偏再回来）。
+       *
+       * 聚焦会把排列切到三维，紧凑尺度随之展开——行星在世界里往外走。
+       * 如果沿用起飞那一刻抓下来的坐标，镜头就飞向一个已经空掉的位置，
+       * 落地后每帧的跟随逻辑再把它拽回行星身边，看起来就是"先跑偏再回来"。
+       * 这里在飞行途中持续用当帧的行星位置刷新目标，镜头直接飞向当前真实位置。
+       */
+      if (active.kind === 'in') {
+        const focusState = useAtlasStore.getState()
+        const live = liveAnchor(focusState.focusKind, focusState.focusId, worldNow())
+        const flightAspect = size.width / Math.max(size.height, 1)
+        const next = live ? computeFocusShot(focusState.focusKind, live, flightAspect) : null
+        if (next) active.to = next
+      }
       current.current.target.lerpVectors(active.from.target, active.to.target, e)
       current.current.height = THREE.MathUtils.lerp(active.from.height, active.to.height, e)
       current.current.yaw = THREE.MathUtils.lerp(active.from.yaw, active.to.yaw, e)
@@ -1121,6 +1247,7 @@ export function CameraRig() {
           !drag.current.active &&
           !touchDrag.current &&
           !touchManualOrbit.current &&
+          !manualOrbit.current &&
           flight.current === null &&
           !drag.current.moved
         ) {
@@ -1138,7 +1265,7 @@ export function CameraRig() {
           desired.current.target,
           desired.current.pitch
         )
-        current.current.target.lerp(desired.current.target, 1 - Math.pow(0.02, step))
+        // Target damping is applied below, after the user pan offset.
       } else if (useAtlasStore.getState().viewLayer === 'DEEP') {
         // VIEW / DEEP：镜头退到能装下整个外太阳系与深空探测器的位置
         desired.current.target.copy(home.current.target)
@@ -1148,7 +1275,7 @@ export function CameraRig() {
           desired.current.yaw = home.current.yaw
           desired.current.pitch = home.current.pitch
         }
-        desired.current.height = home.current.height * 2.4
+        if (!manualZoom.current) desired.current.height = home.current.height * 2.4
       } else {
         // 科普排列 ⇄ 真实位置：两套构图，切按钮才换
         const realMode = useAtlasStore.getState().positionMode === 'REAL'
@@ -1160,7 +1287,7 @@ export function CameraRig() {
         desired.current.target.copy(base.target)
         // 科普排列（SIDE）把朝向锁在信息图构图上；
         // 一旦进入 3D 或真实位置模式，朝向归用户，只在他没缩放时贴合尺度。
-        if (sideView && !drag.current.active && !touchDrag.current) {
+        if (sideView && !manualOrbit.current && !drag.current.active && !touchDrag.current) {
           desired.current.yaw = base.yaw + pointer.current.x * 0.035
           // 俯仰**不再跟着指针动**：侧视图要的是"黄道面合成一条线"，
           // 哪怕 1.6° 的指针俯仰也会让冥王星那条 162 单位的轨道上下张开几个单位。
@@ -1175,18 +1302,23 @@ export function CameraRig() {
           t.elapsed += step
           const k = THREE.MathUtils.clamp(t.elapsed / t.duration, 0, 1)
           const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2
-          desired.current.target.x = THREE.MathUtils.lerp(t.fromX, t.toX, e)
-          desired.current.target.z = THREE.MathUtils.lerp(t.fromZ, t.toZ, e)
           desired.current.yaw = THREE.MathUtils.lerp(t.fromYaw, t.toYaw, e)
           desired.current.pitch = THREE.MathUtils.lerp(t.fromPitch, t.toPitch, e)
-          desired.current.height = THREE.MathUtils.lerp(t.fromHeight, t.toHeight, e)
+          /**
+           * 目标点与高度**不在这里插值**（用户 2026-09-25：切三维时中心点会回弹一下）。
+           *
+           * 旧版在过渡开始时把当时的 target / height 抓成端点，可那之后紧凑尺度还在
+           * 连续变化（base 每帧都在动），两边同时写 desired：过渡结束时镜头被拽回
+           * 抓取时的旧构图，看起来就是"中心点回弹一下"。
+           * 现在只让这段过渡负责朝向，位置与尺度一律交给 base（它本来就是连续变化的）。
+           */
           if (k >= 1) transition.current = null
         }
       }
       desired.current.target.add(manualOffset.current)
 
       const damp = 1 - Math.pow(0.0018, step)
-      if (!following) current.current.target.lerp(desired.current.target, damp)
+      current.current.target.lerp(desired.current.target, damp)
       current.current.height += (desired.current.height - current.current.height) * damp
       current.current.yaw += (desired.current.yaw - current.current.yaw) * damp
       current.current.pitch += (desired.current.pitch - current.current.pitch) * damp

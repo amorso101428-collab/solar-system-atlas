@@ -1,4 +1,5 @@
 import { deviceClassOf, getLayoutMode } from '../responsive/device'
+import { useExperience } from '../state/experience'
 
 /**
  * LOD 增益（V1.1 真机修复）。
@@ -102,11 +103,12 @@ export interface BackgroundDim {
 
 const DIM_NONE: BackgroundDim = { planets: 1, orbits: 1, objects: 1, stars: 1 }
 const DIM_BODY: BackgroundDim = { planets: 0.14, orbits: 0.08, objects: 0.06, stars: 0.18 }
+const DIM_BODY_CLEAR: BackgroundDim = { planets: 0.14, orbits: 0, objects: 0, stars: 0.10 }
 const DIM_REGION: BackgroundDim = { planets: 0.45, orbits: 0.2, objects: 0.2, stars: 0.4 }
 const DIM_OBJECT: BackgroundDim = { planets: 0.5, orbits: 0.25, objects: 0.6, stars: 0.4 }
 
 export function focusBackgroundDim(focusKind: string): BackgroundDim {
-  if (focusKind === 'PLANET' || focusKind === 'MOON') return DIM_BODY
+  if (focusKind === 'PLANET' || focusKind === 'MOON') return useExperience.getState().context ? DIM_BODY : DIM_BODY_CLEAR
   if (focusKind === 'REGION' || focusKind === 'COMET') return DIM_REGION
   if (focusKind === 'OBJECT') return DIM_OBJECT
   return DIM_NONE
