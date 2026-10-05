@@ -4,6 +4,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "pack:assets": "node scripts/pack-source-assets.mjs",
+    "prepare:assets": "node scripts/restore-source-assets.mjs",
+    "verify:assets": "node scripts/restore-source-assets.mjs --verify",
+    "postinstall": "node scripts/restore-source-assets.mjs",
     "dev": "vite",
     "build": "node scripts/build.mjs",
     "build:pages": "node scripts/build.mjs && node scripts/build-pages.mjs",

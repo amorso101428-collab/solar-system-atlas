@@ -1,4 +1,6 @@
 import { build } from 'esbuild';
+import {restoreSourceAssets} from './restore-source-assets.mjs';
+await restoreSourceAssets();
 const uiMotionTest=await build({entryPoints:['tests/ui-motion.ts'],bundle:true,platform:'node',format:'esm',write:false});
 await import('data:text/javascript;base64,'+Buffer.from(uiMotionTest.outputFiles[0].text).toString('base64'));
 const gatewayTest=await build({entryPoints:['tests/ocean-gateway.ts'],bundle:true,platform:'node',format:'esm',write:false});

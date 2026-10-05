@@ -14,3 +14,7 @@ __pycache__/
 *.pyc
 .DS_Store
 pages-build-report.json
+# Restored losslessly from the tracked source-assets packages.
+/public/
+/integrations/solar-system-atlas/public/
+/assets/sources/

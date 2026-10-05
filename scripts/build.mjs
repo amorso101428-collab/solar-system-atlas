@@ -7,6 +7,8 @@
 import { build } from "esbuild";
 import { cp, mkdir, rm, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import {restoreSourceAssets} from './restore-source-assets.mjs';
+await restoreSourceAssets();
 import "./sync-solar-ui.mjs";
 
 const out = "dist";
