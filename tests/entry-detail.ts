@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {isEarthLink,solarEntry} from '../src/lib/entryRoute';
+import {needsTerrain,detailError,needsScienceRaster} from '../src/lib/earthDetail';
+for(const q of ['', '?lang=en','?view=atlas&body=earth','?intro=hold&boot=0'])assert.equal(isEarthLink(q),false,q);
+for(const q of ['?view=globe','?view=MAP','?view=depth','?intro=0','?from=solar','?sel=species:angler','?lesson=gyres','?mode=DIVE'])assert.equal(isEarthLink(q),true,q);
+assert.equal(solarEntry('?lang=en&body=earth&view=atlas'),'/solar/?lang=en&body=earth&view=atlas');
+assert.equal(needsTerrain(19000000,false,true,false),false);
+assert.equal(needsTerrain(800000,false,true,true),false);
+assert.equal(needsTerrain(800000,false,true,false),true);
+assert.equal(needsTerrain(1500000,true,true,true),true);
+assert.equal(needsTerrain(1900000,true,true,false),false);
+assert.equal(needsTerrain(1000,true,false,false),false);
+assert.equal(detailError('HIGH',true),8);
+assert.ok(detailError('HIGH',false)<detailError('LOW',false));
+assert.equal(needsScienceRaster({land:true,ocean:true,clouds:true,currents:true}),false);
+for(const l of ['wind','rain','cloudcover','field','warmcold'])assert.equal(needsScienceRaster({land:true,ocean:true,[l]:true}),true);
+assert.equal(needsScienceRaster({land:false,ocean:true}),true);
+console.log('Universe entry, preserved Earth links, deferred terrain and natural-view raster gating passed.');

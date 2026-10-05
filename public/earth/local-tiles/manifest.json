@@ -1,0 +1,16 @@
+{
+  "source": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/october/world.200410.3x21600x10800.jpg",
+  "sourcePage": "https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-map/",
+  "credit": "NASA Earth Observatory \u00b7 Blue Marble Next Generation \u00b7 Reto St\u00f6ckli / NASA GSFC",
+  "derived": "NASA land with existing Solar System Scope CC BY 4.0 sea colour; ocean detail remains 4K",
+  "nativeSize": [
+    21600,
+    10800
+  ],
+  "tileSize": 675,
+  "maximumLevel": 4,
+  "groundResolution": "2 km/pixel at equator",
+  "observation": "October 2004 composite; not live imagery",
+  "sha256": "bf568ceca2ad55e9c8dd7bcedfd0e419201d03bb560206a7bfa2cc57c1e04c64",
+  "bytes": 31543129
+}

@@ -1,32 +1,43 @@
 {
-  "name": "solar-system-atlas",
+  "name": "ocean-atlas",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "HUMAN ARTIFACTS — A Cartography of Humanity in the Solar System",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --port 4173",
+    "build": "node scripts/build.mjs",
+    "build:pages": "node scripts/build.mjs && node scripts/build-pages.mjs",
+    "deploy:pages": "npm run build:pages && npx --yes wrangler@4.138.0 pages deploy dist-pages --project-name=solar-system-atlas --branch=main",
+    "build:vite": "vite build",
+    "preview": "node scripts/serve.mjs",
+    "preview:pages": "node --dns-result-order=ipv4first scripts/serve-pages.mjs",
+    "test": "node scripts/check.mjs",
+    "test:pages": "node tests/pages-service.mjs && node tests/pages-packed-tiles.mjs",
     "typecheck": "tsc --noEmit",
-    "deploy:pages": "npm run build && npx --yes wrangler@4.138.0 pages deploy dist --project-name=solar-system-atlas --branch=main --commit-dirty=true"
+    "typecheck:solar": "tsc --noEmit -p integrations/solar-system-atlas/tsconfig.json",
+    "install:solar": "npm install --prefix integrations/solar-system-atlas"
   },
   "dependencies": {
-    "@react-three/drei": "^10.7.8",
-    "@react-three/fiber": "^9.7.0",
-    "motion": "^13.4.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "satellite.js": "^7.1.0",
-    "three": "^0.186.0",
-    "zustand": "^5.0.15"
+    "@fontsource/ibm-plex-mono": "5.1.0",
+    "@fontsource/inter": "5.1.0",
+    "@mapbox/vector-tile": "^3.0.0",
+    "@react-three/drei": "9.114.3",
+    "@react-three/fiber": "8.17.10",
+    "pbf": "^5.1.2",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "0.160.1",
+    "topojson-client": "3.1.0",
+    "zustand": "4.5.5"
   },
   "devDependencies": {
-    "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0",
-    "@types/three": "^0.186.0",
-    "@vitejs/plugin-react": "^6.1.1",
-    "typescript": "^7.0.2",
-    "vite": "^8.3.0"
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@types/three": "0.160.0",
+    "@vitejs/plugin-react": "4.3.4",
+    "esbuild": "0.21.3",
+    "opencc-js": "^1.4.2",
+    "typescript": "5.6.3",
+    "vite": "5.4.11"
   }
 }

@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import {chinaStamp,timestampMs,forecastIsStale} from '../src/lib/format';
+import {useAtlas} from '../src/state/store';
+import {limbOpacity,LIMB_SHADER} from '../src/lib/limbHalo';
+import {highDetailAlpha} from '../src/components/earth/basemap';
+assert.equal(chinaStamp('2026-10-02T16:01:00Z'),'2026-10-03 00:01 UTC+8');
+assert.equal(chinaStamp('2026-12-31T16:00:00'),'2027-01-01 00:00 UTC+8');
+assert.equal(timestampMs('2026-10-03T08:00:00+08:00'),Date.parse('2026-10-03T00:00:00Z'));
+assert.equal(chinaStamp('bad'),'—');assert.ok(forecastIsStale('2026-10-02T03:00Z',Date.parse('2026-10-03T08:00Z')));
+const s=useAtlas.getState;const now=Date.parse('2026-10-03T08:00Z');s().followCurrentTime();s().setFieldInfo({updatedAt:now-86400000});s().setPlaying(true);s().tickTime(now,700);assert.equal(s().time.simTime,now);s().tickTime(now+700,700);assert.equal(s().time.simTime,now+700);assert.equal(s().time.followNow,true);
+s().setSimTime(now-3600000);s().setRate(2);s().tickTime(now+1700,1000);assert.equal(s().time.followNow,false);assert.equal(s().time.simTime,now-3600000+2000);s().setPlaying(false);s().tickTime(now+2700,1000);assert.equal(s().time.simTime,now-3600000+2000);s().followCurrentTime();assert.equal(s().time.followNow,true);
+assert.equal(highDetailAlpha(19000000,'HIGH'),0);assert.equal(highDetailAlpha(10000,'LOW'),1);assert.equal(highDetailAlpha(10000,'MEDIUM'),1);assert.equal(highDetailAlpha(10000,'HIGH'),1);assert.ok(highDetailAlpha(500000,'HIGH')>0&&highDetailAlpha(500000,'HIGH')<1);
+assert.ok(limbOpacity(0)>.4);for(const h of [1000,10000,30000,90000]){assert.ok(limbOpacity(h)>limbOpacity(h+1000));assert.equal(limbOpacity(h),limbOpacity(-h));}assert.equal(limbOpacity(150000),0);assert.equal(limbOpacity(1e6),0);assert.equal(limbOpacity(NaN),0);assert.ok(LIMB_SHADER.includes('czm_inverseViewRotation'));
+console.log('China rollover, now/replay clock, genuine detail quality gate and continuous density limb checks passed.');

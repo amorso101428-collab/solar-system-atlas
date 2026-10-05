@@ -1,0 +1,4 @@
+export const MERCATOR_LAT = 85.0511287798066;
+export function mercatorY(latitude: number) { const lat = Math.max(-MERCATOR_LAT, Math.min(MERCATOR_LAT, latitude)) * Math.PI / 180; return (1 - Math.log(Math.tan(Math.PI / 4 + lat / 2)) / Math.PI) / 2; }
+export function decodeElevation(red: number, green: number, blue: number) { return red * 256 + green + blue / 256 - 32768; }
+export function sampleElevation(pixels: Uint8ClampedArray, size: number, x: number, y: number) { const px = Math.max(0, Math.min(size - 1, x)), py = Math.max(0, Math.min(size - 1, y)), x0 = Math.floor(px), y0 = Math.floor(py), fx = px - x0, fy = py - y0; const at = (a: number, b: number) => { const k = (Math.min(size - 1, b) * size + Math.min(size - 1, a)) * 4; return decodeElevation(pixels[k], pixels[k + 1], pixels[k + 2]); }; return (at(x0, y0) * (1 - fx) + at(x0 + 1, y0) * fx) * (1 - fy) + (at(x0, y0 + 1) * (1 - fx) + at(x0 + 1, y0 + 1) * fx) * fy; }

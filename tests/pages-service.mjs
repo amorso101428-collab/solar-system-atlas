@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import worker,{detailTilePath} from '../scripts/pages-worker.mjs';
+assert.deepEqual(detailTilePath('/api/imagery/geoq-gray/3/2/4.png'),{z:3,y:2,x:4});
+assert.deepEqual(detailTilePath('/api/imagery/world-imagery/8/104/215.jpg'),{z:8,y:104,x:215});
+assert.equal(detailTilePath('/api/imagery/world-imagery/19/0/0.jpg'),null);
+for(const path of ['/api/imagery/geoq-gray/20/0/0.png','/api/imagery/geoq-gray/2/4/0.png','/api/imagery/geoq-gray/2/0/4.png','/api/imagery/https://example.com'])assert.equal(detailTilePath(path),null);
+const originalFetch=globalThis.fetch,originalCaches=globalThis.caches;
+let upstreamCalls=0,assetCalls=0;const cache=new Map(),pending=[];
+globalThis.caches={default:{match:async key=>cache.get(key.url)?.clone(),put:async(key,value)=>cache.set(key.url,value)}};
+const env={ASSETS:{fetch:async()=>{assetCalls++;return new Response('static')}}},ctx={waitUntil:p=>pending.push(p)};
+const request=path=>new Request('https://test.example'+path);
+try{
+ globalThis.fetch=async url=>{upstreamCalls++;assert.equal(url,'https://thematic.geoq.cn/arcgis/rest/services/ChinaOnlineStreetGray/MapServer/tile/3/2/4');return new Response(new Uint8Array([137,80,78,71,13,10,26,10,1]),{headers:{'content-type':'image/png'}});};
+ const tile=await worker.fetch(request('/api/imagery/geoq-gray/3/2/4.png?ignored=1'),env,ctx);
+ assert.equal(tile.status,200);assert.equal(tile.headers.get('content-type'),'image/png');await Promise.all(pending);
+ assert.equal((await worker.fetch(request('/api/imagery/geoq-gray/3/2/4.png'),env,ctx)).status,200);assert.equal(upstreamCalls,1);
+ assert.equal((await worker.fetch(request('/api/imagery/geoq-gray/2/4/0.png'),env,ctx)).status,400);
+ assert.equal((await worker.fetch(new Request('https://test.example/api/orbits',{method:'POST'}),env,ctx)).status,405);
+ assert.equal((await worker.fetch(request('/api/environment/weather.json'),env,ctx)).status,404);
+ assert.equal(assetCalls,0);
+ assert.equal(await (await worker.fetch(request('/solar/'),env,ctx)).text(),'static');assert.equal(assetCalls,1);
+ globalThis.fetch=async()=>new Response('not PNG');
+ assert.equal((await worker.fetch(request('/api/imagery/geoq-gray/0/0/0.png'),env,ctx)).status,503);
+ globalThis.fetch=async url=>{assert.equal(url,'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json');return Response.json([{NORAD_CAT_ID:25544,EPOCH:'2026-10-04T00:00:00Z'}]);};
+ const orbits=await worker.fetch(request('/api/orbits'),env,ctx);assert.equal(orbits.status,200);assert.ok(orbits.headers.get('x-orbit-fetched-at'));assert.equal((await orbits.json())[0].NORAD_CAT_ID,25544);await Promise.all(pending);
+ cache.clear();globalThis.fetch=async()=>{throw Error('upstream outage');};
+ globalThis.fetch=async url=>{assert.equal(url,'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/8/104/215');return new Response(new Uint8Array([255,216,255,1]),{headers:{'content-type':'image/jpeg'}});};
+ const satellite=await worker.fetch(request('/api/imagery/world-imagery/8/104/215.jpg'),env,ctx);
+ assert.equal(satellite.status,200);assert.equal(satellite.headers.get('content-type'),'image/jpeg');assert.match(satellite.headers.get('x-imagery-source'),/satellite/);
+ globalThis.fetch=async()=>{throw Error('upstream outage');};
+ assert.equal((await worker.fetch(request('/api/orbits'),env,ctx)).status,503);
+ console.log('Pages adapter: bounded fixed-origin tiles, cache, method validation, static isolation, invalid upstream and orbit outage passed.');
+}finally{globalThis.fetch=originalFetch;globalThis.caches=originalCaches;}

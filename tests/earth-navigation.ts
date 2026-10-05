@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {parseCoordinates,MIN_EYE_HEIGHT,MAX_EYE_HEIGHT,useEarthView,minimumCameraHeight,zoomRange,placeRange} from '../src/lib/earthEngine';
+assert.deepEqual(parseCoordinates('121.49, 31.23'),{lon:121.49,lat:31.23});
+assert.deepEqual(parseCoordinates('-112.1，36.1'),{lon:-112.1,lat:36.1});
+assert.deepEqual(parseCoordinates('31.23,121.49'),{lon:121.49,lat:31.23});
+assert.deepEqual(parseCoordinates('180 -90'),{lon:180,lat:-90});
+for(const query of ['','上海','200,30','12abc,20','Infinity,20','12,20,30'])assert.equal(parseCoordinates(query),null);
+assert.ok(MIN_EYE_HEIGHT>0&&MIN_EYE_HEIGHT<100);assert.ok(MAX_EYE_HEIGHT>10000000);
+assert.ok(placeRange(40,50,-5,15)>1000000);assert.ok(placeRange(48.80,48.91,2.22,2.42)<40000);assert.equal(placeRange(NaN,1,2,3),16000);assert.equal(placeRange(-90,90,-180,180),19000000);assert.ok(placeRange(-10,10,170,-170)<4000000);
+assert.equal(minimumCameraHeight(5900),5930);assert.equal(minimumCameraHeight(-5000),30);assert.equal(minimumCameraHeight(NaN),30);let near=19000000;for(let i=0;i<40;i++)near=zoomRange(near,'in');assert.equal(near,60);assert.equal(zoomRange(50000000,'out'),50000000);assert.ok(Number.isFinite(zoomRange(Infinity,'in')));
+const s=useEarthView.getState();s.request({kind:'fly',lon:121.49,lat:31.23,range:9000,pitch:-55});const previous=useEarthView.getState().command!;s.request({kind:'north'});assert.notEqual(useEarthView.getState().command?.key,previous.key);assert.equal(previous.lon,121.49);
+console.log('Place coordinate parsing and geographic navigation requests passed.');

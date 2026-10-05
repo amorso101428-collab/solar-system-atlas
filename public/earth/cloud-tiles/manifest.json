@@ -1,0 +1,17 @@
+{
+  "source": "https://www.solarsystemscope.com/textures/download/8k_earth_clouds.jpg",
+  "license": "CC BY 4.0",
+  "nativeSize": [
+    8192,
+    4096
+  ],
+  "levels": [
+    2048,
+    4096,
+    8192
+  ],
+  "tileSize": 512,
+  "gutter": 2,
+  "sourceSHA256": "c792eca228989d36ebb45d3ea6ff1198be5e21a25d70d2fbcb2124ffd14ba7f5",
+  "bytes": 21897628
+}

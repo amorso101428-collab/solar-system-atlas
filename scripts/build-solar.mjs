@@ -1,0 +1,11 @@
+import {build} from 'esbuild';
+import {cp,mkdir,readFile,writeFile} from 'node:fs/promises';
+const root='integrations/solar-system-atlas';
+await mkdir('dist/solar/assets',{recursive:true});
+await cp(root+'/public','dist',{recursive:true});
+const options={bundle:true,format:'esm',jsx:'automatic',target:['es2022'],minify:true,legalComments:'inline',define:{'process.env.NODE_ENV':'"production"'},loader:{'.woff2':'file','.woff':'file','.png':'file','.jpg':'file','.svg':'file'},plugins:[{name:'public-assets',setup(b){b.onResolve({filter:/^\//},a=>({path:a.path,external:true}))}}],logLevel:'warning'};
+await build({...options,entryPoints:[root+'/src/main.tsx'],outfile:'dist/solar/assets/solar.js'});
+await build({...options,entryPoints:[root+'/src/astronomy/liveOrbits.worker.ts'],outfile:'dist/solar/assets/live-orbits.js'});
+const html=(await readFile(root+'/index.html','utf8')).replace('<script type="module" src="/src/main.tsx"></script>','<link rel="stylesheet" href="/solar/assets/solar.css"/><script type="module" src="/solar/assets/solar.js"></script>');
+await writeFile('dist/solar/index.html',html);
+console.log('Solar atlas + Earth → Ocean gateway built');

@@ -1,0 +1,164 @@
+{
+  "blue-whale": {
+    "image": "/species/blue-whale.jpg",
+    "author": "NOAA Photo Library",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "source": "https://commons.wikimedia.org/wiki/File:Anim1754_-_Flickr_-_NOAA_Photo_Library.jpg",
+    "description": "Balaenoptera musculus",
+    "file": "Anim1754_-_Flickr_-_NOAA_Photo_Library.jpg"
+  },
+  "sperm-whale": {
+    "image": "/species/sperm-whale.jpg",
+    "author": "Gabriel Barathieu",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Mother_and_baby_sperm_whale.jpg",
+    "description": "A mother sperm whale and her calf off the coast of Mauritius.  The calf has remoras attached to its body.",
+    "file": "Mother_and_baby_sperm_whale.jpg"
+  },
+  "orca": {
+    "image": "/species/orca.jpg",
+    "author": "Robert Pittman",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "source": "https://commons.wikimedia.org/wiki/File:Killerwhales_jumping.jpg",
+    "description": "Two killer whales photographed off the south side of Unimak Island, eastern Aleutian Islands, Alaska",
+    "file": "Killerwhales_jumping.jpg"
+  },
+  "great-white": {
+    "image": "/species/great-white.jpg",
+    "author": "Pterantula (Terry Goss) at en.wikipedia",
+    "license": "CC BY 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.5",
+    "source": "https://commons.wikimedia.org/wiki/File:White_shark.jpg",
+    "description": "Great white shark at Isla Guadalupe, Mexico, August 2006. Shot with Nikon D70s in Ikelite housing, in natural light. Animal estimated at 11-12 feet (3.3 to 3.6 m) in length, age unknown.",
+    "file": "White_shark.jpg"
+  },
+  "whale-shark": {
+    "image": "/species/whale-shark.jpg",
+    "author": "Abe Khao Lak",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Similan_Dive_Center_-_great_whale_shark.jpg",
+    "description": "Whale shark at the Andaman sea",
+    "file": "Similan_Dive_Center_-_great_whale_shark.jpg"
+  },
+  "bluefin": {
+    "image": "/species/bluefin.jpg",
+    "author": "Jean Ogden Just Chaos Photography",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Atlantic_Bluefin_Tuna.jpg",
+    "description": "Monterey Bay aquarium",
+    "file": "Atlantic Bluefin Tuna.jpg"
+  },
+  "green-turtle": {
+    "image": "/species/green-turtle.jpg",
+    "author": "Charles J. Sharp",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Green_sea_turtle_(Chelonia_mydas)_Moorea.jpg",
+    "description": "Green sea turtle (Chelonia mydas), Moorea, French Polynesia",
+    "file": "Green_sea_turtle_(Chelonia_mydas)_Moorea.jpg"
+  },
+  "humpback": {
+    "image": "/species/humpback.jpg",
+    "author": "Juan Cruzado Cortés",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Humpback_whale_breaching_off_Cabo_San_Lucas.jpg",
+    "description": "Humpback whale breaching off Cabo San Lucas, Mexico",
+    "file": "Humpback_whale_breaching_off_Cabo_San_Lucas.jpg"
+  },
+  "giant-octopus": {
+    "image": "/species/giant-octopus.jpg",
+    "author": "NOAA/R. N. Lea [1]",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "source": "https://commons.wikimedia.org/wiki/File:Enteroctopus_dolfeini.jpg",
+    "description": "A Pacific Giant Octopus (Enteroctopus dolfeini) was observed off Point Piños, California, in August 2004 at a depth of 65 meters during sanctuary sea floor monitoring surveys using the Delta submersible.",
+    "file": "Enteroctopus_dolfeini.jpg"
+  },
+  "greenland-shark": {
+    "image": "/species/greenland-shark.jpg",
+    "author": "NOAA Okeanos Explorer Program",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "source": "https://commons.wikimedia.org/wiki/File:Somniosus_microcephalus_okeanos.jpg",
+    "description": "Greenland shark (Somniosus microcephalus)",
+    "file": "Somniosus_microcephalus_okeanos.jpg"
+  },
+  "emperor-penguin": {
+    "image": "/species/emperor-penguin.jpg",
+    "author": "Ian Duffy from UK",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Aptenodytes_forsteri_-Snow_Hill_Island,_Antarctica_-adults_and_juvenile-8.jpg",
+    "description": "Two adult Emperor Penguins with a juvenile on Snow Hill Island, Antarctica.",
+    "file": "Aptenodytes_forsteri_-Snow_Hill_Island,_Antarctica_-adults_and_juvenile-8.jpg"
+  },
+  "sea-otter": {
+    "image": "/species/sea-otter.jpg",
+    "author": "Marshal Hedin from San Diego",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Sea_Otter_(Enhydra_lutris)_(25169790524)_crop.jpg",
+    "description": "A close-up of a sea otter, taken in Morro Bay, California in 2016.",
+    "file": "Sea_Otter_(Enhydra_lutris)_(25169790524)_crop.jpg"
+  },
+  "moonfish": {
+    "image": "/species/moonfish.jpg",
+    "author": "U.S. National Oceanic and Atmospheric Administration",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "source": "https://commons.wikimedia.org/wiki/File:Mola_mola.jpg",
+    "description": "Mola mola (en: Ocean Sunfish; pt: Peixe lua)",
+    "file": "Mola_mola.jpg"
+  },
+  "lanternfish": {
+    "image": "/species/lanternfish.jpg",
+    "author": "C. Anela Choy, Steven H. D. Haddock and Bruce H. Robison",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Physonect_siphonophore_feeding_on_a_lanternfish.jpg",
+    "description": "An undescribed physonect siphonophore known as ‘the galaxy siphonophore’ feeding on a lanternfish of the family Myctophidae",
+    "file": "Physonect siphonophore feeding on a lanternfish.jpg"
+  },
+  "krill": {
+    "image": "/species/krill.jpg",
+    "author": "Krill666.jpg: Uwe Kils I am willing to give the image in 1700 resolution to Wikipedia Uwe Kils",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "source": "https://commons.wikimedia.org/wiki/File:Antarctic_krill_(Euphausia_superba).jpg",
+    "description": "Antarctic krill Euphausia superba.  This is the startimage of the virtual microscope http://www.ecoscope.com/cybermic/index.htm of krill where you can click into details of the animal to get higher magnifications, like the gills, the feeding basket or the swimming legs, up to raster electron and transmission electron images, also some videos - there are many links to jumpoff sites for educators, like from the SCIENCE MAGAZINE. In natural hovering position - the red organs produce the bioluminesc",
+    "file": "Antarctic_krill_(Euphausia_superba).jpg"
+  },
+  "sardine-run": {
+    "image": "/species/sardine-run.jpg",
+    "author": "harum.koh from Kobe city, Japan",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Japan_fish,_South_American_pilchard_(Sardinops_sagax)_(15579000828).jpg",
+    "description": "マイワシ. \nat Suma aquarium.\n\nwww.inaturalist.org/calendar/harumkoh/2014/11/9",
+    "file": "Japan_fish,_South_American_pilchard_(Sardinops_sagax)_(15579000828).jpg"
+  },
+  "sargassum": {
+    "image": "/species/sargassum.jpg",
+    "author": "Unknown authorUnknown author",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "source": "https://commons.wikimedia.org/wiki/File:Sargassum_weeds_closeup.jpg",
+    "description": "A closeup of a small mass of sargassum weed. The numerous small round spheres are floats filled with oxygen.1 These provide buoyancy to the algae.",
+    "file": "Sargassum_weeds_closeup.jpg"
+  },
+  "deepsea-lizardfish": {
+    "image": "/species/deepsea-lizardfish.jpg",
+    "author": "NOAA Ocean Exploration, Mountains in the Deep: Exploring the Central Pacific Basin",
+    "license": "Public domain (NOAA)",
+    "licenseUrl": "https://www.noaa.gov/disclaimer",
+    "source": "https://oceanexplorer.noaa.gov/multimedia/daily-image-media-20210107/",
+    "description": "Deep-sea lizardfish, Bathysaurus mollis, observed during Dive 08.",
+    "file": "20210107-hires.jpg"
+  }
+}

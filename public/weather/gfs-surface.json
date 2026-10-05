@@ -1,0 +1,24 @@
+{
+  "source": "NOAA / NCEP GFS via NSF Unidata NCSS",
+  "url": "https://tds.scigw.unidata.ucar.edu/thredds/ncss/grid/grib/NCEP/GFS/Global_0p25deg/Best?var=u-component_of_wind_height_above_ground&var=v-component_of_wind_height_above_ground&var=Precipitation_rate_surface&var=Total_cloud_cover_entire_atmosphere&north=90&south=-90&west=0&east=360&horizStride=1&time=present&vertCoord=10&accept=netcdf3",
+  "validTime": "2026-10-03T09:00:00.000Z",
+  "rainTime": "2026-10-03T09:00:00.000Z",
+  "cloudTime": "2026-10-03T09:00:00.000Z",
+  "downloadedAt": "2026-10-03T09:32:31.443Z",
+  "width": 1440,
+  "height": 721,
+  "lon0": -180,
+  "lat0": -90,
+  "dLon": 0.25,
+  "dLat": 0.25,
+  "channels": [
+    "eastward wind m/s",
+    "northward wind m/s",
+    "precipitation rate mm/h"
+  ],
+  "nativeResolution": "0.25°",
+  "displayResolution": "0.25°",
+  "binary": "/weather/gfs-surface.bin",
+  "cloudBinary": "/weather/gfs-clouds.bin",
+  "license": "US government data; served by NSF Unidata"
+}

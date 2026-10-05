@@ -1,0 +1,100 @@
+﻿{
+    "io":  {
+               "body":  "Io",
+               "source":  "Wikimedia Commons - File:Io map projection PIA00319.jpg",
+               "credit":  "NASA/JPL/USGS",
+               "license":  "Public domain",
+               "usage":  "texture (equirectangular global mosaic, downsampled)"
+           },
+    "europa":  {
+                   "body":  "Europa",
+                   "source":  "Wikimedia Commons - File:Jupiter II-Europa map NASA JPL Voyager.jpg",
+                   "credit":  "Caltech/JPL/USGS",
+                   "license":  "Public domain",
+                   "usage":  "texture (equirectangular global mosaic, downsampled)"
+               },
+    "ganymede":  {
+                     "body":  "Ganymede",
+                     "source":  "Wikimedia Commons - File:Ganymede map NASA JPL Voyager.jpg",
+                     "credit":  "Caltech/JPL/USGS",
+                     "license":  "Public domain",
+                     "usage":  "texture (equirectangular global mosaic, downsampled)"
+                 },
+    "callisto":  {
+                     "body":  "Callisto",
+                     "source":  "Wikimedia Commons - File:Callisto map NASA JPL Voyager.jpg",
+                     "credit":  "Caltech/JPL/USGS",
+                     "license":  "Public domain",
+                     "usage":  "texture (equirectangular global mosaic, downsampled)"
+                 },
+    "mimas":  {
+                  "body":  "Mimas",
+                  "source":  "Wikimedia Commons - File:Map of Mimas 2010-02 PIA12780.jpg",
+                  "credit":  "NASA/JPL/Space Science Institute",
+                  "license":  "Public domain",
+                  "usage":  "texture (equirectangular global mosaic, downsampled)"
+              },
+    "enceladus":  {
+                      "body":  "Enceladus",
+                      "source":  "Wikimedia Commons - File:Map of Enceladus PIA 14937 Dec 2011.jpg",
+                      "credit":  "NASA/JPL/Space Science Institute",
+                      "license":  "Public domain",
+                      "usage":  "texture (equirectangular global mosaic, downsampled)"
+                  },
+    "tethys":  {
+                   "body":  "Tethys",
+                   "source":  "Wikimedia Commons - File:Map of Tethys PIA 14931 Jun 2012.jpg",
+                   "credit":  "NASA/JPL/Space Science Institute",
+                   "license":  "Public domain",
+                   "usage":  "texture (equirectangular global mosaic, downsampled)"
+               },
+    "dione":  {
+                  "body":  "Dione",
+                  "source":  "Wikimedia Commons - File:Dione map 2011 PIA14914.jpg",
+                  "credit":  "NASA/JPL/Space Science Institute",
+                  "license":  "Public domain",
+                  "usage":  "texture (equirectangular global mosaic, downsampled)"
+              },
+    "rhea":  {
+                 "body":  "Rhea",
+                 "source":  "Wikimedia Commons - File:Rhea map NASA JPL Voyager.jpg",
+                 "credit":  "Caltech/JPL/USGS",
+                 "license":  "Public domain",
+                 "usage":  "texture (equirectangular global mosaic, downsampled)"
+             },
+    "titan":  {
+                  "body":  "Titan",
+                  "source":  "Wikimedia Commons - File:Map of Titan cropped.jpg",
+                  "credit":  "NASA/JPL/Space Science Institute",
+                  "license":  "Public domain",
+                  "usage":  "texture (equirectangular global mosaic, downsampled)"
+              },
+    "phoebe":  {
+                   "body":  "Phoebe",
+                   "source":  "Wikimedia Commons - File:Phoebe map PIA07775 cropped.jpg",
+                   "credit":  "NASA/JPL/Space Science Institute",
+                   "license":  "Public domain",
+                   "usage":  "texture (equirectangular global mosaic, downsampled)"
+               },
+    "triton":  {
+                   "body":  "Triton",
+                   "source":  "Wikimedia Commons - File:Triton map no grid.jpg",
+                   "credit":  "NASA/JPL (Voyager 2), mosaic by P. Schenk / LPI",
+                   "license":  "Public domain",
+                   "usage":  "texture (equirectangular global mosaic, downsampled)"
+               },
+    "charon":  {
+                   "body":  "Charon",
+                   "source":  "Wikimedia Commons - File:Charon map iau1803c.jpg",
+                   "credit":  "NASA/JHUAPL/SwRI (New Horizons)",
+                   "license":  "Public domain",
+                   "usage":  "texture (equirectangular global mosaic, band trimmed and stretched to 2:1)"
+               },
+    "pluto":  {
+                  "body":  "Pluto",
+                  "source":  "Wikimedia Commons - File:Pluto color mapmosaic.jpg",
+                  "credit":  "NASA/JHUAPL/SwRI (New Horizons)",
+                  "license":  "Public domain",
+                  "usage":  "texture (equirectangular global color mosaic, band trimmed and stretched to 2:1)"
+              }
+}

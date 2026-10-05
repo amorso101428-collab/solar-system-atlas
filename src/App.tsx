@@ -1,315 +1,165 @@
-import { UIParticles } from './ui/UIParticles'
-import { ExperienceShortcuts } from './ui/FlightDeck'
-import { useExperience } from './state/experience'
-import { useEffect, useMemo, useState } from 'react'
-import { AtlasCanvas } from './scene/AtlasCanvas'
-import { Intro } from './ui/Intro'
-import { TopBar } from './ui/TopBar'
-import { Timeline } from './ui/Timeline'
-import { ObjectArchive } from './ui/ObjectArchive'
-import { BodyArchive } from './ui/BodyArchive'
-import { RegionArchive } from './ui/RegionArchive'
-import { SunArchive } from './ui/SunArchive'
-import { CometArchive } from './ui/CometArchive'
-import { BackButton } from './ui/BackButton'
-import { Cursor } from './ui/Cursor'
-import { Onboarding } from './ui/Onboarding'
-import { CatalogPanel } from './ui/CatalogPanel'
-import { MusicHall } from './ui/MusicHall'
-import { AtlasQuote } from './ui/QuoteTicker'
-import { SystemTelemetry } from './ui/SystemTelemetry'
-import { CreatorPanel } from './ui/CreatorCard'
-import { BootScreen } from './ui/BootScreen'
-import { MobileNav } from './ui/MobileNav'
-import { MobileMenu } from './ui/MobileMenu'
-import { MobileSheet } from './ui/MobileSheet'
-import { audio } from './audio/audioManager'
-import { useAtlasStore } from './state/atlasStore'
-import { useDeviceClass, useLayoutMode } from './responsive/useDevice'
-import { OBJECT_BY_ID, FIRST_LAUNCH_YEAR, CURRENT_YEAR } from './data/objects'
-import { useT } from './i18n'
-import { requestOrbitPose, setOrbitPoseImmediate, setPositionPoseImmediate } from './utils/orbitPose'
+import { useEffect, useState } from "react";
+import Intro from "./components/Intro";
+import { clearEarthTextures } from "./components/globe/Earth";
+import GlobeScene from "./components/earth/GeospatialEarth";
+
+
+import Hud from "./components/Hud";
+import { UIParticles } from "./components/UIParticles";
+import { AtlasCursor } from "./components/AtlasCursor";
+import SceneBoundary from "./components/SceneBoundary";
+import { useLanguage } from "./i18n";
+import type { CurrentField } from "./lib/currentField";
+import { makeFallbackField, loadWaterMask, attachMask, loadPublishedField, toMs, FieldLoadError } from "./lib/fieldSource";
+import { detectQuality, qualityOverride } from "./lib/quality";
+import { Arrival } from "./components/Arrival";
+import { useAtlas } from "./state/store";
+import { useUIMotion } from "./state/uiMotion";
 
 export default function App() {
-  /**
-   * 进场加载（v7.2）。
-   *
-   * 先跑一遍素材再放开场：`?boot=0` 跳过（自检截图用），`?boot=hold` 停在加载页
-   * （给加载页截图用）。加载期间主场景已经在后面渲染，贴图上传与着色器编译
-   * 都在这段时间完成，所以之后点"进入图谱"不会再卡。
-   */
-  const bootMode = useMemo(
-    () => new URLSearchParams(window.location.search).get('boot') ?? '',
-    []
-  )
-  const [booted, setBooted] = useState(false)
-  const bootVisible = bootMode !== '0' && !booted
-  const mode = useAtlasStore((state) => state.mode)
-  const focusKind = useAtlasStore((state) => state.focusKind)
-  const focusId = useAtlasStore((state) => state.focusId)
-  const selectedObjectId = useAtlasStore((state) => state.selectedObjectId)
-  const archiveOpen = useAtlasStore((state) => state.archiveOpen)
-  const timelineYear = useAtlasStore((state) => state.timelineYear)
-  const t = useT()
+  const view = useAtlas((s) => s.view);
+  const setView = useAtlas((s) => s.setView);
+  const quality = useAtlas((s) => s.quality);
 
+  const entered = view !== "INTRO";
+  const panel = useAtlas(s => s.panel);
+  const { t, locale } = useLanguage();
+  const [sceneAttempt, setSceneAttempt] = useState(0);
+  useEffect(() => { document.documentElement.lang=locale; document.title=t("HUMAN ARTIFACTS · 地球知识", "HUMAN ARTIFACTS · Earth knowledge"); }, [locale, t]);
+  const [field, setField] = useState<CurrentField | null>(null);
+
+  // deep links: ?view=globe|map|depth  &intro=0
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      const state = useAtlasStore.getState()
-      state.setSearchOpen(false)
-      state.toggleGuide(false)
-      if (state.focusKind !== 'ATLAS') {
-        audio.emit('focus.close')
-        state.back()
+    const p = new URLSearchParams(window.location.search);
+    const lang=p.get("lang");if(lang==="en"||lang==="zh")useAtlas.getState().setLocale(lang==="en"?"en":"zh-CN");
+    if(p.get("from")==="solar"){useAtlas.getState().setPlaying(false);const lon=Number(p.get("lon")),lat=Number(p.get("lat"));if(p.has("lon")&&p.has("lat")&&Number.isFinite(lon)&&Number.isFinite(lat))useAtlas.getState().focusOn(lon,lat);}
+    const v = (p.get("view") || "").toUpperCase();
+    if (v === "MAP" || v === "DEPTH" || v === "GLOBE") setView(v as any);
+    if (p.get("intro") === "0" && !v) setView("GLOBE");
+    const mo = (p.get("mode") || "").toUpperCase();
+    if (mo === "GEOGRAPHY" || mo === "DIVE" || mo === "EXPLORE") useAtlas.getState().setMode(mo as any);
+    const lesson = p.get("lesson");
+    if (lesson) useAtlas.getState().setLesson(lesson);
+    const step = p.get("step");
+    if (step) useAtlas.getState().setLessonStep(Number(step));
+    const sel = p.get("sel");
+    if (sel && sel.includes(":")) {
+      const [kind, id] = sel.split(":");
+      if (kind === "current" || kind === "ocean" || kind === "species" || kind === "dive") {
+        useAtlas.getState().select({ kind: kind as any, id });
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [])
-
-  /**
-   * 背景音乐（v9 §3）：进站立即尝试播放；被浏览器策略拦下时，
-   * 第一次 pointerdown / keydown 会自动续上，不需要用户去找播放按钮。
-   *
-   * 交互音效由首次用户手势解锁，与背景音乐独立开关。
-   */
+  }, [setView]);
+  const [scale, setScale] = useState("GLOBAL");
   useEffect(() => {
-    audio.autoStart()
-  }, [])
+    const sync=()=>{
+      const el=document.querySelector<HTMLElement>('.atlas[data-view]');if(!el)return;
+      const height=window.visualViewport?.height??window.innerHeight;
+      el.style.setProperty('--app-height',`${Math.round(height)}px`);
+      el.style.setProperty('--vv-offset-top',`${Math.round(window.visualViewport?.offsetTop??0)}px`);
+      el.dataset.keyboard=window.innerHeight-height>120?'open':'closed';
+    };
+    sync();window.addEventListener('resize',sync);window.visualViewport?.addEventListener('resize',sync);window.visualViewport?.addEventListener('scroll',sync);
+    return()=>{window.removeEventListener('resize',sync);window.visualViewport?.removeEventListener('resize',sync);window.visualViewport?.removeEventListener('scroll',sync);};
+  }, []);
 
-// 深链：?object=iss&year=2010 / ?view=atlas（跳过开场）
+  const reloadRequest = useAtlas((s) => s.reloadRequest);
+
+  // pick a render tier from the device (plan §17)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    /**
-     * V1.1 复盘：这里曾经把"手机竖屏默认落在俯视实时太阳系"作为落点，
-     * 真机反馈是"打开完全不知道是什么、没有侧视图"——已撤销。
-     * 手机 / 平板 / 桌面现在落在同一个侧视图谱上，只在取景与 LOD 上做设备补偿。
-     */
-    const objectId = params.get('object')
-    const bodyId = params.get('body')
-    const view = params.get('view')
-    const unfold = params.get('unfold')
-    const grid = params.get('grid')
-    const position = params.get('position')
-    const region = params.get('region')
-    const weather = params.get('weather')
-    const comet = params.get('comet')
-    const catalog = params.get('catalog')
-    const music = params.get('music')
-    const hide = params.get('hide')
-    const year = Number.parseInt(params.get('year') ?? '', 10)
-    if (Number.isFinite(year)) {
-      useAtlasStore
-        .getState()
-        .setTimelineYear(Math.min(CURRENT_YEAR, Math.max(FIRST_LAUNCH_YEAR, year)))
-    }
-    const preUnfold = () => {
-      if (unfold !== '1') return
-      setOrbitPoseImmediate(1)
-      useAtlasStore.getState().setAtlasPose(false)
-    }
-    const applyLayers = () => {
-      const state = useAtlasStore.getState()
-      if (grid === '1') state.toggleGrid(true)
-      if (position === 'real') {
-        setPositionPoseImmediate(1)
-        requestOrbitPose(1)
-        useAtlasStore.setState({
-          positionMode: 'REAL',
-          view: 'ORBIT3D',
-          atlasPose: false,
-        })
-      }
-      if (weather === '1') state.toggleSpaceWeather(true)
-      if (hide === 'artificial') state.toggleHideArtificial(true)
-      if (hide === 'planets') state.toggleHidePlanetOrbits(true)
-      if (hide === 'all') state.toggleHideAllOrbits(true)
-    }
-    if (hide) {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      const hideTimer = window.setTimeout(applyLayers, 300)
-      if (!objectId && !bodyId && !region && !comet) return () => window.clearTimeout(hideTimer)
-    }
-    if (comet) {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      const cometTimer = window.setTimeout(() => {
-        preUnfold()
-        applyLayers()
-        useAtlasStore.getState().focusComet(comet)
-      }, 320)
-      return () => window.clearTimeout(cometTimer)
-    }
-    if (grid === '1' || position === 'real' || weather === '1') {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      const layerTimer = window.setTimeout(applyLayers, 300)
-      // 这些图层在总览里才有意义，但不阻塞其它深链
-      if (!objectId && !bodyId && !region) return () => window.clearTimeout(layerTimer)
-    }
-    if (region) {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      const timer = window.setTimeout(() => {
-        preUnfold()
-        applyLayers()
-        useAtlasStore
-          .getState()
-          .focusRegion(region as 'asteroid' | 'kuiper' | 'oort')
-      }, 320)
-      return () => window.clearTimeout(timer)
-    }
-    if (objectId && OBJECT_BY_ID.has(objectId)) {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      const timer = window.setTimeout(() => {
-        preUnfold()
-        applyLayers()
-        useAtlasStore.getState().select(objectId)
-      }, 320)
-      return () => window.clearTimeout(timer)
-    }
-    if (bodyId) {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      const timer = window.setTimeout(() => {
-        preUnfold()
-        applyLayers()
-        useAtlasStore.getState().focusPlanet(bodyId)
-      }, 320)
-      return () => window.clearTimeout(timer)
-    }
-    if (view === 'atlas') {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-    }
-    // 自检用深链：?catalog=1 打开在轨目录面板，?music=1 打开背景音乐面板
-    if (catalog === '1') {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      const timer = window.setTimeout(() => {
-        useAtlasStore.getState().openCatalogPanel(true)
-        if (!useAtlasStore.getState().catalogVisible) useAtlasStore.getState().toggleCatalog()
-      }, 320)
-      return () => window.clearTimeout(timer)
-    }
-    if (music === '1') {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      useAtlasStore.getState().openMusicPanel(true)
-    }
-    if (view === 'deep') {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      useAtlasStore.getState().setViewLayer('DEEP')
-    }
-    if (view === 'unfold') {
-      useAtlasStore.setState({ mode: 'ATLAS' })
-      setOrbitPoseImmediate(1)
-      useAtlasStore.getState().setAtlasPose(false)
-    }
-  }, [])
+    useAtlas.getState().setQuality(qualityOverride() ?? detectQuality());
+  }, []);
 
-  const annotations = useExperience(s => s.annotations)
-  const immersive = useExperience(s => s.immersive)
-  const atlasVisible = mode !== 'INTRO'
-  const focused = focusKind !== 'ATLAS'
-  const view = useAtlasStore((state) => state.view)
-  const gridVisible = useAtlasStore((state) => state.gridVisible)
-  const searchOpen = useAtlasStore((state) => state.searchOpen)
-  const mobileMenuOpen = useAtlasStore((state) => state.mobileMenuOpen)
-  const layoutMode = useLayoutMode()
-  const device = useDeviceClass()
-  const sheetState = useAtlasStore((state) => state.sheetState)
-  // 左上角有返回键时，主标题要往下让位，否则两者会叠在一起（方案书 §15）
-  const hasBack = focusKind !== 'ATLAS' || view === 'ORBIT3D'
-  // 右侧出现档案面板时，顶部导航与底部时间轴都要让位，不能钻到面板底下
-  const panelOpen =
-    focusKind === 'PLANET' ||
-    focusKind === 'MOON' ||
-    focusKind === 'REGION' ||
-    focusKind === 'COMET' ||
-    (archiveOpen && focusKind === 'OBJECT')
-
-  /**
-   * V1.1 §28：抽屉 / 菜单 / 搜索打开时锁住页面滚动。
-   * 站点本身是固定布局（不会滚），但 iOS Safari 的橡皮筋会让
-   * 整页跟着手指动一下——这就是"抽屉里滚到底，页面却弹了一下"。
-   */
+  // field bootstrap: analytic fallback paints immediately, then a published
+  // feed replaces it if one is wired up (plan §18 fallback contract)
   useEffect(() => {
-    const locked = panelOpen || mobileMenuOpen || searchOpen
-    document.documentElement.dataset.sheetOpen = locked ? 'yes' : 'no'
-  }, [panelOpen, mobileMenuOpen, searchOpen])
+    let cancelled = false,publishedReady=false;
+    const store = useAtlas.getState();
+
+    const fallback = makeFallbackField();
+    setField(fallback);
+    store.setFieldData(fallback);
+
+    loadWaterMask().then((img) => {
+      if (cancelled || publishedReady) return;
+      attachMask(fallback, img);
+      setField({ ...fallback });
+      useAtlas.getState().setFieldData({ ...fallback });
+    });
+
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("field") === "off" || p.get("fieldFail") === "1") {
+      store.setDataHealth("UNAVAILABLE", "Published field disabled for this session");
+      return () => { cancelled = true; };
+    }
+
+    const load=()=>loadPublishedField(p.get("field") || "/current/manifest.json")
+      .then(({ field: published, manifest }) => {
+        if (cancelled) return;
+        const s = useAtlas.getState();
+        if(publishedReady&&published.timestamp<=s.field.timestamp)return;
+        publishedReady=true;
+        setField(published);
+        s.setFieldData(published);
+        const validT = toMs(manifest.timestamp);
+        s.setFieldInfo({
+          source: String(manifest.source || "PUBLISHED FIELD").toUpperCase(),
+          mode: manifest.mode || "ANALYSIS",
+          timestamp: validT,
+          updatedAt: toMs(manifest.updatedAt, validT),
+          simulated: manifest.simulated ?? false,
+          status: "LIVE",
+          resolution: manifest.resolution || "unknown",
+        });
+        s.setDataHealth("OK");
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        // a missing manifest just means no feed is wired yet — stay quiet and
+        // keep the analytic fallback; a broken feed is surfaced as DEGRADED.
+        if (e instanceof FieldLoadError && e.stage === "field") {
+          useAtlas.getState().setDataHealth("DEGRADED", "Manifest found but the field binary failed to load");
+        }
+      });
+
+    load();
+    const refresh=setInterval(()=>{if(!document.hidden)load();},1800000);
+    return () => { cancelled = true;clearInterval(refresh); };
+  }, [reloadRequest]);
+
+  // Wall clock follows China display time; manual selection explicitly enters replay.
+  useEffect(() => {
+    let last=Date.now();
+    const tick=()=>{const now=Date.now();useAtlas.getState().tickTime(now,now-last);last=now;};
+    const id=setInterval(tick,1000);document.addEventListener('visibilitychange',tick);
+    return()=>{clearInterval(id);document.removeEventListener('visibilitychange',tick);};
+  }, []);
+
+  const noWebGL=new URLSearchParams(location.search).get("webgl")==="off";
+  const showGlobe = !!field && (view === "GLOBE");
+
+  const globeFallback=<div className="scene-error" role="alert"><h2>{t("三维地球暂不可用", "3D globe unavailable")}</h2><p>{t("可重试，或从资料库继续阅读海洋与生物档案。", "Retry, or continue reading ocean and species records in the library.")}</p><button onClick={() => {clearEarthTextures();setSceneAttempt(x => x + 1);}}>{t("重试", "Retry")}</button><button onClick={() => useAtlas.getState().setPanel("library")}>{t("打开资料库", "Open library")}</button></div>;
 
   return (
-    <div
-      className="atlas"
-      data-mode={mode}
-      data-immersive={immersive}
-      data-annotations={annotations}
-      data-archive={archiveOpen ? 'open' : 'closed'}
-      data-focus={focusKind.toLowerCase()}
-      data-back={hasBack ? 'yes' : 'no'}
-      data-panel={panelOpen ? 'open' : 'closed'}
-      data-grid={gridVisible ? 'on' : 'off'}
-      data-year={timelineYear}
-      /**
-       * V1：设备与布局模式。CSS 里所有移动端规则都挂在这两个属性上，
-       * 桌面端（data-device="desktop"）一条都不会匹配——这是"桌面零变化"的开关。
-       */
-      data-device={device}
-      data-layout={layoutMode}
-      data-sheet={sheetState}
-    >
-      <AtlasCanvas />
-      <div id="label-layer" className="label-layer" />
-      {/* v8 §27：行星表面全息标注层（贴在球面上的科学标签） */}
-      <div id="holo-layer" className="holo-layer" />
-      <Cursor />
-      <UIParticles />
-      <div className="vignette" />
-      <div className="grain" />
-
-      <div className={`ui-layer${atlasVisible ? ' is-visible' : ''}`}>
-        {focused ? null : (
-        <div className={`masthead${atlasVisible ? ' is-in' : ''}`}>
-          <h1>{t('brand.title')}</h1>
-          <i />
-          <p>
-            {t('brand.sub1')}
-            <br />
-            {t('brand.sub2')}
-          </p>
-          <div className="masthead__count">{OBJECT_BY_ID.size} {t('stats.objects')}</div>
-        </div>
+    <div data-ui-system="shared" data-ui-preview="heritage" data-ui-motion={useUIMotion(s=>s.mode)} data-view={view} data-reduced={useAtlas(s=>s.reducedMotion)} className={"atlas" + (entered && panel ? " has-overlay" : "") + (!entered ? " is-intro" : "")}>
+      <AtlasCursor />
+      <UIParticles disabled={useAtlas(s=>s.reducedMotion)} />
+      <div className="canvas-layer" key={view}>
+        {showGlobe && field && (
+          <SceneBoundary key={sceneAttempt} fallback={globeFallback}>{noWebGL?globeFallback:<GlobeScene field={field} quality={quality} onDescend={() => {}} onScale={setScale} />}</SceneBoundary>
         )}
 
-        <BackButton />
-        <TopBar />
-        <ExperienceShortcuts />
-        <Onboarding />
-        <Timeline />
-        {/* v9 §23：右上角的系统详情（在原工具区上方，不改动原布局） */}
-        {new URLSearchParams(window.location.search).get('debug') === '1' && <SystemTelemetry />}
-        {/* v9 §8：作者 / 版权面板 */}
-        <CreatorPanel />
-        {/* v9 §7：图谱左下角的"天文学思想长廊" */}
-        <AtlasQuote />
 
-        {archiveOpen && selectedObjectId && focusKind === 'OBJECT' ? (
-          <ObjectArchive objectId={selectedObjectId} />
-        ) : null}
-        {focusKind === 'PLANET' && focusId === 'sun' ? <SunArchive /> : null}
-        {(focusKind === 'PLANET' || focusKind === 'MOON') && focusId && focusId !== 'sun' ? (
-          <BodyArchive kind={focusKind} id={focusId} />
-        ) : null}
-        {focusKind === 'REGION' && focusId ? <RegionArchive id={focusId} /> : null}
-        {focusKind === 'COMET' && focusId ? <CometArchive id={focusId} /> : null}
-        <CatalogPanel />
-        {/* v8.1：专门的音乐播放界面（整张专辑 + 播放源切换） */}
-        <MusicHall />
-
-        {/* V1 §16 / §17：移动端顶部导航、底部动作条与菜单抽屉 */}
-        <MobileNav />
-        <MobileMenu />
-        {/* V1 §06：详情 Bottom Sheet 的拖拽吸附（不改动档案组件本身的 DOM） */}
-        <MobileSheet />
+        {!field && (
+          <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
+            <span>{t("正在准备海洋数据…", "Preparing ocean data…")}</span>
+          </div>
+        )}
       </div>
 
-      {/* 开场只在加载完成之后挂载：它的逐字解码动画必须从头开始，而不是被加载页挡掉一半 */}
-      {bootMode === '0' || booted ? <Intro /> : null}
-      {bootVisible ? <BootScreen hold={bootMode === 'hold'} onDone={() => setBooted(true)} /> : null}
+      <Arrival/>
+      {entered && <Hud scale={scale} />}
+      {!entered && <Intro onEnter={() => setView("GLOBE")} />}
     </div>
-  )
+  );
 }

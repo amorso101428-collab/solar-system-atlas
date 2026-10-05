@@ -1,0 +1,94 @@
+{
+  "solar": [
+    {
+      "background": "linear-gradient(135deg, rgba(26, 24, 21, 0.9), rgba(12, 16, 19, 0.82)), linear-gradient(125deg, rgba(220, 181, 126, 0.48), rgba(140, 181, 189, 0.24) 34%, rgba(163, 142, 184, 0.22) 64%, rgba(220, 181, 126, 0.32))",
+      "color": "rgb(126, 122, 114)",
+      "font": "PlexMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "height": 30,
+      "padding": "6px 8px",
+      "radius": "12px",
+      "size": "11.5px",
+      "text": "⌂ 主页",
+      "weight": "500"
+    },
+    {
+      "background": "linear-gradient(135deg, rgba(26, 24, 21, 0.9), rgba(12, 16, 19, 0.82)), linear-gradient(125deg, rgba(220, 181, 126, 0.48), rgba(140, 181, 189, 0.24) 34%, rgba(163, 142, 184, 0.22) 64%, rgba(220, 181, 126, 0.32))",
+      "color": "rgb(126, 122, 114)",
+      "font": "PlexMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "height": 30,
+      "padding": "6px 8px",
+      "radius": "12px",
+      "size": "11.5px",
+      "text": "对象全部任务",
+      "weight": "500"
+    },
+    {
+      "background": "linear-gradient(135deg, rgba(26, 24, 21, 0.9), rgba(12, 16, 19, 0.82)), linear-gradient(125deg, rgba(220, 181, 126, 0.48), rgba(140, 181, 189, 0.24) 34%, rgba(163, 142, 184, 0.22) 64%, rgba(220, 181, 126, 0.32))",
+      "color": "rgb(126, 122, 114)",
+      "font": "PlexMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "height": 30,
+      "padding": "6px 8px",
+      "radius": "12px",
+      "size": "11.5px",
+      "text": "天体地球",
+      "weight": "500"
+    },
+    {
+      "background": "linear-gradient(135deg, rgba(26, 24, 21, 0.9), rgba(12, 16, 19, 0.82)), linear-gradient(125deg, rgba(220, 181, 126, 0.48), rgba(140, 181, 189, 0.24) 34%, rgba(163, 142, 184, 0.22) 64%, rgba(220, 181, 126, 0.32))",
+      "color": "rgb(126, 122, 114)",
+      "font": "PlexMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "height": 30,
+      "padding": "6px 8px",
+      "radius": "12px",
+      "size": "11.5px",
+      "text": "实时位置示意位置",
+      "weight": "500"
+    }
+  ],
+  "earth": [
+    {
+      "background": "linear-gradient(135deg, rgba(26, 24, 21, 0.9), rgba(12, 16, 19, 0.82)), linear-gradient(125deg, rgba(220, 181, 126, 0.48), rgba(140, 181, 189, 0.24) 34%, rgba(163, 142, 184, 0.22) 64%, rgba(220, 181, 126, 0.32))",
+      "color": "rgb(126, 122, 114)",
+      "font": "PlexMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "height": 30,
+      "padding": "6px 8px",
+      "radius": "12px",
+      "size": "11.5px",
+      "text": "⌂主页",
+      "weight": "500"
+    },
+    {
+      "background": "linear-gradient(135deg, rgba(26, 24, 21, 0.9), rgba(12, 16, 19, 0.82)), linear-gradient(125deg, rgba(220, 181, 126, 0.48), rgba(140, 181, 189, 0.24) 34%, rgba(163, 142, 184, 0.22) 64%, rgba(220, 181, 126, 0.32))",
+      "color": "rgb(126, 122, 114)",
+      "font": "PlexMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "height": 30,
+      "padding": "6px 8px",
+      "radius": "12px",
+      "size": "11.5px",
+      "text": "← 地球系统",
+      "weight": "500"
+    },
+    {
+      "background": "linear-gradient(135deg, rgba(26, 24, 21, 0.9), rgba(12, 16, 19, 0.82)), linear-gradient(125deg, rgba(220, 181, 126, 0.48), rgba(140, 181, 189, 0.24) 34%, rgba(163, 142, 184, 0.22) 64%, rgba(220, 181, 126, 0.32))",
+      "color": "rgb(126, 122, 114)",
+      "font": "PlexMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "height": 30,
+      "padding": "6px 8px",
+      "radius": "12px",
+      "size": "11.5px",
+      "text": "地球 自然视图",
+      "weight": "500"
+    },
+    {
+      "background": "linear-gradient(135deg, rgba(26, 24, 21, 0.9), rgba(12, 16, 19, 0.82)), linear-gradient(125deg, rgba(220, 181, 126, 0.48), rgba(140, 181, 189, 0.24) 34%, rgba(163, 142, 184, 0.22) 64%, rgba(220, 181, 126, 0.32))",
+      "color": "rgb(126, 122, 114)",
+      "font": "PlexMono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      "height": 30,
+      "padding": "6px 8px",
+      "radius": "12px",
+      "size": "11.5px",
+      "text": "图层 数据与环境",
+      "weight": "500"
+    }
+  ]
+}

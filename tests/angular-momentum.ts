@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {AngularMomentum} from '../integrations/solar-system-atlas/src/utils/angularMomentum';
+const flick=()=>{const m=new AngularMomentum();m.begin(1);for(let i=1;i<=6;i++)m.sample(.008,-.004,1+i*.02);m.release(1.12);return m;};
+const travel=(fps:number)=>{const m=flick();let x=0,y=0;for(let i=0;i<fps*3;i++){const d=m.step(1/fps);x+=d.x;y+=d.y;}return{x,y};};
+assert.ok(flick().active);
+const slow=new AngularMomentum();slow.begin(1);slow.sample(.002,0,1.1);slow.release(1.1);assert.equal(slow.active,false);
+const paused=new AngularMomentum();paused.begin(1);paused.sample(.02,0,1.02);paused.release(1.2);assert.equal(paused.active,false);
+const reduced=flick();reduced.release(2,true);assert.equal(reduced.active,false);
+const a=travel(30),b=travel(60),c=travel(120);assert.ok(a.x>.12&&a.x<.16);assert.ok(a.y<0);assert.ok(Math.abs(a.x-b.x)<1e-8&&Math.abs(b.x-c.x)<1e-8);
+const braking=flick();const early=braking.step(.04).x;const later=braking.step(.04).x;assert.ok(later<early);braking.begin(2);assert.equal(braking.active,false);
+const stale=flick();assert.deepEqual(stale.step(1),{x:0,y:0});assert.equal(stale.active,false);
+const capped=new AngularMomentum();capped.begin(1);capped.sample(100,100,1.01);capped.release(1.01);let total=0;for(let i=0;i<600;i++){const d=capped.step(1/60);total+=Math.hypot(d.x,d.y);}assert.ok(total<.35);assert.equal(capped.active,false);
+console.log('Angular momentum: fast/slow drag, stale release, cancellation, friction and 30/60/120fps consistency passed.');

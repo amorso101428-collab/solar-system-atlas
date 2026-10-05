@@ -1,0 +1,52 @@
+/* Layout/semantic bindings only. Visual declarations are copied directly from
+   the supplied solar source by solar-ui-adapter.css. */
+.atlas.atlas[data-view]:not(.is-intro){--text:var(--ink);--text-dim:var(--ink-dim);--text-mute:var(--ink-muted);--accent:var(--node);font-family:var(--sans)}
+.atlas.atlas.has-panel,.atlas.atlas.has-archive{--workspace-offset:0px}
+.atlas.atlas[data-view]:not(.is-intro) :is(.app-header button:not(.nav-menu button),.earth-navigation button){min-height:0;min-width:0;line-height:normal;white-space:nowrap}
+.atlas.atlas[data-view]:not(.is-intro) .app-header .atlas-home{width:auto;height:auto;flex:0 0 auto;font:500 11.5px var(--mono);padding:6px 8px;letter-spacing:.26em;overflow:visible}
+.atlas.atlas[data-view]:not(.is-intro) .app-header .atlas-home small{display:inline;font:inherit;letter-spacing:inherit;margin-left:5px}
+.atlas.atlas[data-view]:not(.is-intro) .app-header .atlas-nav small{display:inline;font:8px var(--mono);letter-spacing:.16em;margin-left:7px;color:var(--ink-faint)}
+.atlas.atlas[data-view]:not(.is-intro) .app-header .nav-menu small{display:block;font:10px/1.7 var(--sans);letter-spacing:0;margin:0;color:var(--ink-faint)}
+.atlas.atlas[data-view]:not(.is-intro) .app-header .nav-menu{top:calc(100% + 10px);width:var(--ui-menu-width-wide);gap:0;padding:0;max-height:calc(100dvh - 160px);overflow:auto}
+.atlas.atlas[data-view]:not(.is-intro) .app-header .nav-menu button{min-height:0;min-width:0;gap:3px;white-space:normal;justify-content:space-between}
+.atlas.atlas[data-view]:not(.is-intro) .app-header .nav-menu button:has(small){display:grid}
+.atlas.atlas[data-view]:not(.is-intro) .workspace-panel__body{font-family:var(--sans);color:var(--ink-dim);text-shadow:none}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating{--text:var(--ink);--text-dim:var(--ink-dim);--text-mute:var(--ink-muted)}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating .workspace-panel__head h2{font:10px var(--mono);letter-spacing:.2em;color:var(--ink-faint);text-shadow:none}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating .workspace-panel__body :is(.reading-heading h1,.record-heading h1,.depth-heading h1){font-weight:300;font-family:var(--sans)}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating :is(.reading-heading,.record-heading,.search-label,.tagrow){background:transparent;border:0;box-shadow:none;backdrop-filter:none;padding:0}
+.atlas.atlas[data-view]:not(.is-intro) .workspace-panel .tagrow{gap:6px}
+.atlas.atlas[data-view]:not(.is-intro) .switch{flex:none}
+.atlas.atlas[data-view]:not(.is-intro) .workspace-panel :is(.tag,.tbtn){min-height:0;min-width:0;line-height:normal}
+.atlas.atlas[data-view]:not(.is-intro) .workspace-panel__head>button{min-height:0;min-width:68px;line-height:normal}
+.atlas.atlas[data-view]:not(.is-intro) .workspace-panel input:not([type=checkbox]):not([type=range]){min-height:0;font:11px var(--mono);letter-spacing:.06em}
+.atlas.atlas[data-view]:not(.is-intro) .earth-search input{min-height:0;font:11px var(--mono);letter-spacing:.06em}
+.atlas.atlas[data-view]:not(.is-intro) .earth-search form{height:36px;border-radius:var(--ui-radius)}
+.atlas.atlas[data-view]:not(.is-intro) .earth-search form button{min-height:0;height:34px}
+.atlas.atlas[data-view]:not(.is-intro) .earth-footer{font:10px/1.7 var(--mono);color:var(--ink-muted)}
+.atlas.atlas[data-view]:not(.is-intro) .earth-music-card{color:var(--ink);font:12.5px/1.8 var(--sans)}
+.atlas.atlas[data-view]:not(.is-intro) .earth-music-card :is(small,a){font:10px/1.7 var(--mono);color:var(--ink-muted)}
+.atlas.atlas[data-view]:not(.is-intro) .earth-music-card strong{font:400 14px var(--mono)}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents{position:absolute;padding:0;color:var(--ink-dim)}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents button{min-height:0;text-shadow:none;color:#a9aaa4}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents .contents-label{margin:0}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents ol{padding:6px}
+.atlas.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true]{--ink:#172938;--ink-dim:#233e50;--ink-muted:#3b5262;--ink-faint:#3b5262;--node:#765526;--floating-fill:#ffffff88;--floating-edge:linear-gradient(125deg,#b49e7770,#7a9ea450)}
+@media(min-width:1024px){
+ .atlas.atlas[data-view]:not(.is-intro) :is(.workspace-panel,.workspace-panel.has-contents){width:var(--panel-w);right:18px;top:130px;overflow:visible}
+ .atlas.atlas[data-view]:not(.is-intro) .is-floating :is(.workspace-panel__body,.has-contents .workspace-panel__body){padding:0 30px 30px}
+ .atlas.atlas[data-view]:not(.is-intro) .is-floating .workspace-panel__head{padding:0 30px 12px}
+ .atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents{left:-146px;top:0;bottom:0;width:134px}
+}
+@media(max-width:1023px){
+ .atlas.atlas[data-view]:not(.is-intro) .app-header button:not(.nav-menu button),.atlas.atlas[data-view]:not(.is-intro) .workspace-panel :is(button,input),.atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents button{min-height:44px;min-width:44px}
+ .atlas.atlas[data-view]:not(.is-intro) .app-header .atlas-home{width:44px;height:44px;padding:0;letter-spacing:0}
+ .atlas.atlas[data-view]:not(.is-intro) .app-header .atlas-home small,.atlas.atlas[data-view]:not(.is-intro) .app-header .atlas-nav small{display:none}
+ .atlas.atlas[data-view]:not(.is-intro) .app-header .nav-menu button{min-height:44px}
+ .atlas.atlas[data-view]:not(.is-intro) .earth-search form{height:44px}
+ .atlas.atlas[data-view]:not(.is-intro) .app-header .nav-menu{top:50px}
+ .atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents{display:flex;flex-direction:row;align-items:center;gap:12px;left:0;right:0;width:auto;height:50px;padding:0;overflow:hidden}
+ .atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents .contents-label{padding:8px 10px;border:0;display:block}
+ .atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents ol{display:flex;gap:6px;flex:1;min-width:0;overflow-x:auto;padding:3px}
+ .atlas.atlas[data-view]:not(.is-intro) .is-floating .archive-contents button{white-space:nowrap}
+}

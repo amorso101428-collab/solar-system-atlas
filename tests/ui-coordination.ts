@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {useAtlas} from '../src/state/store';
+import {createSpaceClicks} from '../src/lib/spaceClicks';
+import {useAtlasStore} from '../integrations/solar-system-atlas/src/state/atlasStore';
+const s=useAtlas.getState;
+s().setPanel('library');const layers=s().layers;s().setOverlay('layers');
+assert.equal(s().panel,null);assert.equal(s().overlay,'layers');assert.equal(s().layers,layers);
+s().setPanel('status');assert.equal(s().overlay,null);assert.equal(s().panel,'status');
+s().setOverlay('search');s().select({kind:'current',id:'kuroshio'});assert.equal(s().overlay,null);assert.equal(s().panel,'dossier');
+s().closeUi();assert.equal(s().panel,null);assert.equal(s().dossierOpen,false);
+s().setOverlay('help');s().setOverlay('music');assert.equal(s().overlay,'music');s().closeUi();assert.equal(s().overlay,null);
+const space=createSpaceClicks();assert.equal(space.click(0,10,10),'close');assert.equal(space.click(600,12,11),'open');assert.equal(space.click(800,10,10),'close');
+assert.equal(space.click(1700,10,10),'close');assert.equal(space.click(1800,80,10),'close');space.reset();assert.equal(space.click(1850,80,10),'close');
+const previousWindow=(globalThis as any).window,previousCustomEvent=(globalThis as any).CustomEvent;
+(globalThis as any).window={dispatchEvent:()=>{}};
+(globalThis as any).CustomEvent=class extends Event {constructor(type:string){super(type)}};
+const solar=useAtlasStore.getState;
+solar().focusPlanet('earth');assert.equal(solar().activeUi,'detail');const focus=solar().focusId;
+solar().toggleCreator(true);assert.equal(solar().activeUi,'creator');assert.equal(solar().focusId,focus);
+solar().openCatalogPanel(true);assert.equal(solar().creatorOpen,false);assert.equal(solar().catalogPanelOpen,true);
+solar().setMenu('view');assert.equal(solar().catalogPanelOpen,false);assert.equal(solar().menu,'view');
+solar().setSearchOpen(true);assert.equal(solar().menu,null);assert.equal(solar().searchOpen,true);
+solar().toggleGuide(true);assert.equal(solar().searchOpen,false);solar().openMusicPanel(true);assert.equal(solar().guideOpen,false);
+solar().openMobileMenu(true);assert.equal(solar().musicPanelOpen,false);solar().openMobileMenu(false);assert.equal(solar().activeUi,null);
+solar().setTimelineExpanded(true);assert.equal(solar().activeUi,'time');assert.equal(solar().timelineExpanded,true);solar().setMenu('objects');assert.equal(solar().timelineExpanded,false);solar().closeUi();
+// A delayed camera arrival must not reopen an archive underneath another tool.
+solar().setSearchOpen(true);solar().openArchive();assert.equal(solar().activeUi,'search');solar().closeUi();assert.equal(solar().activeUi,null);
+console.log('Exclusive Solar/Earth panels, unchanged scene/layers, delayed archive arrival and slow space double-click passed.');
+
+if(previousWindow===undefined)delete (globalThis as any).window;else (globalThis as any).window=previousWindow;
+if(previousCustomEvent===undefined)delete (globalThis as any).CustomEvent;else (globalThis as any).CustomEvent=previousCustomEvent;

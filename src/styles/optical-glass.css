@@ -1,0 +1,72 @@
+/* Shared optical finish, taken from the supplied solar atlas optical.css.
+   Both experiences import this file; geometry remains local to each atlas. */
+:root{--ui-radius:12px;--optical-edge:linear-gradient(125deg,rgba(220,181,126,.48),rgba(140,181,189,.24) 34%,rgba(163,142,184,.22) 64%,rgba(220,181,126,.32));--optical-fill:linear-gradient(145deg,rgba(24,23,22,.97),rgba(7,10,12,.96) 55%,rgba(17,13,18,.97))}
+.navbtn,.timeline__play,.catalogpanel__chip,.catalogpanel__tabs button,.reading-chapters button,
+.atlas[data-view]:not(.is-intro) :is(.app-header button,.solar-back,.earth-music,.earth-navigation button,.workspace-panel .tag,.workspace-panel .tbtn,.timeline .tag){
+ border:1px solid transparent;border-radius:var(--ui-radius);
+ background:linear-gradient(135deg,rgba(26,24,21,.9),rgba(12,16,19,.82)) padding-box,var(--optical-edge) border-box;
+ box-shadow:inset 0 1px 0 #ffffff08;backdrop-filter:blur(18px) saturate(115%);
+ transition:background .22s,border-color .22s,box-shadow .22s,color .22s,transform .36s cubic-bezier(.2,.85,.25,1.15);
+}
+.navbtn:hover,.catalogpanel__tabs button:hover,.reading-chapters button:hover,.timeline__play:hover,
+.atlas[data-view]:not(.is-intro) :is(.app-header button,.solar-back,.earth-music,.earth-navigation button,.workspace-panel .tag,.workspace-panel .tbtn,.timeline .tag):hover{
+ box-shadow:inset 0 1px 0 #fff2,0 0 16px #c7a27312;color:#eee1c9;
+}
+.atlas[data-view]:not(.is-intro) :is(.app-header button,.earth-navigation button,.solar-back,.earth-music):active{transform:scale(.96)}
+.catalogpanel__tabs button[aria-pressed=true],.navbtn[aria-pressed=true],.navbtn[data-open=yes],
+.atlas[data-view]:not(.is-intro) :is(.app-header button[aria-expanded=true],.tag.is-on){background:linear-gradient(125deg,#403629,#1a252b 65%,#28202d) padding-box,var(--optical-edge) border-box;color:#f0d8ac}
+.archive,.navmenu,.catalogpanel,.searchpanel,.guide,.musicpanel,
+.atlas[data-view]:not(.is-intro) :is(.workspace-panel,.nav-menu,.earth-search-results,.earth-search form,.earth-help>div,.earth-footer,.earth-stream-status,.earth-cloud-error,.cloud-feed-status,.weather-legend,.current-legend,.timeline,.hovercard,.data-alert,.scene-error){
+ border:1px solid transparent;border-radius:18px;background:var(--optical-fill) padding-box,var(--optical-edge) border-box;
+ box-shadow:inset 0 1px 0 #fff1,0 18px 50px #0008;backdrop-filter:blur(22px) saturate(115%);background-clip:padding-box,border-box;
+}
+.navmenu__item:hover,.navmenu__check:hover,.searchpanel__item:hover,.archive__listitem:hover,
+.atlas[data-view]:not(.is-intro) :is(.nav-menu button,.catalog-list button,.earth-search-results button,.archive-contents button,.lesson-steps button,.layer-item button):hover{background:linear-gradient(110deg,#bd985820,#83b4c112 58%,#ac8ec016);color:#f2e2c6}
+.ui-particles{position:fixed;inset:0;width:100%;height:100%;pointer-events:none!important;z-index:150}
+/* Earth adopts the solar typography and material, preserving its compact layout. */
+.atlas[data-view]:not(.is-intro){--accent:#c9a97a;--text:#e7e1d5;--text-dim:#b9b2a4;--text-mute:#8c938f;--line:#e7e1d526;--line-strong:#e7e1d547;--optical-edge:linear-gradient(125deg,rgba(220,181,126,.48),rgba(140,181,189,.24) 34%,rgba(163,142,184,.22) 64%,rgba(220,181,126,.32));--optical-fill:linear-gradient(145deg,rgba(24,23,22,.97),rgba(7,10,12,.96) 55%,rgba(17,13,18,.97))}
+.atlas[data-view]:not(.is-intro) .app-header button{font:11px var(--mono);letter-spacing:.07em;color:var(--text-dim);padding:6px 10px}
+.atlas[data-view]:not(.is-intro) .app-header .atlas-home{font:19px var(--sans);padding:0}
+.atlas[data-view]:not(.is-intro) .workspace-panel{border-radius:22px}
+.atlas[data-view]:not(.is-intro) .workspace-panel__head{background:linear-gradient(115deg,#151412f5,#0b0e11f5);border-bottom:1px solid #b99a7040;box-shadow:0 8px 20px #0004}
+.atlas[data-view]:not(.is-intro) .workspace-panel__head h2{font:11px var(--mono);letter-spacing:.13em;color:#dac39f}
+.atlas[data-view]:not(.is-intro) .workspace-panel__head button{border:1px solid #c6a87956;background:#9b785818;color:#ead8ba;border-radius:12px}
+.atlas[data-view]:not(.is-intro) .archive-contents{background:linear-gradient(115deg,#ad8b5a0d,#809eae0d);border-right-color:#bfa77939}
+.atlas[data-view]:not(.is-intro) .archive-contents button{border-radius:10px}
+.atlas[data-view]:not(.is-intro) .nav-menu button{border:0;background:transparent;box-shadow:none;backdrop-filter:none;text-align:left;border-radius:10px;letter-spacing:.03em}
+.atlas[data-view]:not(.is-intro) .earth-search form{border-radius:18px}
+.atlas[data-view]:not(.is-intro) .earth-search input{color:var(--text);font:12px var(--sans)}
+.atlas[data-view]:not(.is-intro) .earth-search form button{background:none;border:0;color:#cfc6b6}
+.atlas[data-view]:not(.is-intro) .earth-navigation .compass{border-radius:18px}
+.atlas[data-view]:not(.is-intro) .compass i{color:#d5b181}
+.atlas[data-view]:not(.is-intro) :is(.earth-context-actions button,.earth-stream-status,.earth-cloud-error){color:var(--text-dim)}
+.atlas[data-view]:not(.is-intro) :is(.earth-info-stack,.earth-info-stack small,.earth-search-results small,.earth-attributions,.earth-footer .earth-help){color:var(--text-mute)}
+.atlas[data-view]:not(.is-intro) .earth-info-stack strong{color:#dac39f}
+.atlas[data-view]:not(.is-intro) .earth-footer{box-shadow:inset 0 1px 0 #fff1,0 8px 24px #0003;border-radius:16px}
+.atlas[data-view]:not(.is-intro) .catalog-list button{border-radius:12px;padding:12px}
+.atlas[data-view]:not(.is-intro) .search-label input,.atlas[data-view]:not(.is-intro) .workspace-panel select{border:1px solid #b9a17a33;background:linear-gradient(110deg,#d2b17d08,#789aa70b);border-radius:12px}
+.atlas[data-view]:not(.is-intro) .timeline{padding:0}
+.atlas[data-view]:not(.is-intro) .timeline-toggle{color:var(--text-dim)}
+.atlas[data-view]:not(.is-intro) .switch.is-on{background:#b18155}
+.atlas[data-view]:not(.is-intro) .species-tabs{background:linear-gradient(115deg,#151412f5,#0b0e11f5)}
+.atlas[data-view]:not(.is-intro) .earth-help>div,.atlas[data-view]:not(.is-intro) .earth-search-results,.atlas[data-view]:not(.is-intro) .nav-menu{animation:optical-arrive .48s cubic-bezier(.16,1,.3,1)}
+@keyframes optical-arrive{from{opacity:0;transform:translateY(-6px) scale(.985);filter:blur(2px)}to{opacity:1;transform:none;filter:none}}
+/* Three-stop optical lens. Continuous dragging, elastic snap on release. */
+.quality-control{margin:24px 0 20px;padding:16px;border:1px solid #bfa77939;border-radius:16px;background:linear-gradient(115deg,#ad8b5a0d,#809eae0d)}
+.quality-control__heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.quality-control__heading h3{margin:0;font:12px var(--mono);letter-spacing:.1em;color:#dac39f}.quality-control__heading>span{font:11px var(--sans);color:#eee1c9}
+.quality-slider{height:56px;position:relative;cursor:ew-resize;touch-action:none;border-radius:12px;outline-offset:3px}
+.quality-slider:focus-visible{outline:2px solid var(--accent)}
+.quality-slider__rail{position:absolute;left:22px;right:22px;top:25px;height:6px;background:linear-gradient(90deg,#222525,#3c342b);border:1px solid #c5a36e35;border-radius:8px;box-shadow:inset 0 2px 4px #0009}
+.quality-slider__rail>i{position:absolute;top:0;width:4px;height:4px;border-radius:50%;background:#dec6a18c;z-index:1}.quality-slider__rail>i:nth-child(1){left:0}.quality-slider__rail>i:nth-child(2){left:calc(50% - 2px)}.quality-slider__rail>i:nth-child(3){right:0}
+.quality-slider__fill{position:absolute;left:0;top:0;height:100%;width:calc(var(--quality-position)*100%);background:linear-gradient(90deg,#b186555e,#d6b782a8);border-radius:8px;transition:width .52s cubic-bezier(.25,1.55,.3,1)}
+.quality-slider__lens{position:absolute;top:50%;left:calc(var(--quality-position)*100%);width:38px;height:30px;border:1px solid transparent;border-radius:15px;transform:translate(-50%,-50%);background:radial-gradient(ellipse at 28% 10%,#ffffff55,transparent 58%),linear-gradient(125deg,#d8b9849c,#7eaba675 54%,#a293b867) padding-box,var(--optical-edge) border-box;box-shadow:inset 0 1px 2px #fff7,inset 0 -2px 5px #0004,0 4px 12px #0008,0 0 16px #c7a27322;backdrop-filter:blur(8px);transition:left .52s cubic-bezier(.25,1.55,.3,1),width .32s cubic-bezier(.25,1.5,.3,1),height .32s cubic-bezier(.25,1.5,.3,1)}
+.quality-slider[data-dragging=true] .quality-slider__lens{width:44px;height:26px;transition:left 0s,width .2s,height .2s}.quality-slider[data-dragging=true] .quality-slider__fill{transition:none}
+.quality-slider__labels{display:flex;justify-content:space-between;margin:-8px 0 0}.quality-slider__labels button{font:12px var(--sans);color:#8b9ca4;padding:0;border:0;background:transparent;border-radius:10px;min-width:44px}.quality-slider__labels button[aria-pressed=true]{color:#f0d8ac}.quality-slider__labels button:hover{color:#fff2d9;background:#b697681a}
+.quality-control__hint{font:10px/1.6 var(--sans);color:var(--text-mute);margin:6px 0 0}
+.quality-slider[data-reduced=true] *,.atlas[data-reduced=true] :is(button,.nav-menu,.earth-search-results,.earth-help>div){animation:none!important;transition:none!important}
+@media(prefers-reduced-motion:reduce){.quality-slider *, .atlas button,.nav-menu,.earth-search-results,.earth-help>div{animation:none!important;transition:none!important}}
+@media(max-width:1023px){.atlas[data-view]:not(.is-intro) .app-header button{letter-spacing:.02em;font-size:10px}.atlas[data-view]:not(.is-intro) .workspace-panel{border-radius:20px}.atlas[data-view]:not(.is-intro) .archive-contents{border-right:0;border-bottom-color:#bfa77939;background:linear-gradient(115deg,#151412f5,#0b0e11f5)}}
+
+@media(max-width:1023px){.atlas.has-panel .earth-stream-status,.atlas.has-panel .earth-cloud-error{display:none}}
+
+.atlas[data-view] button,.atlas[data-view] input:not([type=range]):not([type=checkbox]),.atlas[data-view] select{border-radius:var(--ui-radius)}

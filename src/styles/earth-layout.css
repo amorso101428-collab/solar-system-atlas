@@ -1,0 +1,159 @@
+/* Layout belongs to one header row and one full-width footer. Optical finishes
+   stay in the shared solar style; these rules only arrange the controls. */
+.atlas:not(.is-intro){--workspace-offset:0px;--earth-header-bottom:120px}
+.atlas.has-panel{--workspace-offset:388px}.atlas.has-archive{--workspace-offset:560px}
+.atlas[data-view]:not(.is-intro) .app-header{display:flex;align-items:center;justify-content:space-between;gap:16px;top:20px;left:16px;right:24px;padding:0;min-height:44px;grid-template-columns:none}
+.earth-primary-nav,.earth-explore-links{display:flex;align-items:center;gap:8px;min-width:0}
+.atlas[data-view]:not(.is-intro) .app-header .atlas-home{flex:0 0 44px;align-self:center;width:44px;height:44px}
+.atlas[data-view]:not(.is-intro) .app-header .solar-back,.atlas[data-view]:not(.is-intro) .app-header .earth-music{position:static;inset:auto;margin:0;min-height:44px;padding:6px 10px;font:12px var(--sans);letter-spacing:0;flex-shrink:0}
+.atlas[data-view]:not(.is-intro) .app-header .atlas-nav{position:static;display:flex;align-items:center;justify-content:flex-start;gap:8px;grid-column:auto;grid-row:auto;margin:0;flex-shrink:0}
+.atlas[data-view]:not(.is-intro) .app-header .atlas-nav>div{flex:0 0 auto}
+.atlas[data-view]:not(.is-intro) .app-header .atlas-nav>div>button{width:auto}
+.atlas[data-view]:not(.is-intro) .app-header .primary-tools{display:flex;align-items:center;gap:8px}
+.atlas[data-view]:not(.is-intro) .app-header .atlas-utilities{display:flex;align-items:center;gap:8px;justify-self:auto;grid-column:auto;grid-row:auto;flex-shrink:0}
+.atlas[data-view]:not(.is-intro) .app-header button{min-height:44px;padding:6px 10px;font:12px var(--sans);letter-spacing:0}
+.atlas[data-view]:not(.is-intro) .app-header .nav-menu button{font-size:13px;padding:10px 12px}
+.atlas[data-view]:not(.is-intro) .app-header .mobile-tools{display:none}
+.atlas[data-view]:not(.is-intro) .earth-search{top:76px;right:24px;left:auto;width:320px}
+.atlas[data-view]:not(.is-intro) .earth-search-results{max-height:calc(100dvh - 160px - var(--earth-footer-height,64px))}
+.atlas[data-view]:not(.is-intro) .workspace-panel{top:140px}
+.atlas[data-view]:not(.is-intro) .earth-footer{left:16px;right:calc(var(--workspace-offset) + 16px);bottom:8px}
+.atlas[data-view]:not(.is-intro) .earth-navigation{right:calc(var(--workspace-offset) + 24px);bottom:calc(var(--earth-footer-height,64px) + 24px)}
+.atlas[data-view]:not(.is-intro) .earth-stream-status{left:16px;top:80px}
+.atlas[data-view]:not(.is-intro) .earth-cloud-error{left:16px;top:132px}
+@media(min-width:1024px) and (max-width:1200px){
+ .atlas.has-archive{--workspace-offset:503px}
+ .atlas[data-view]:not(.is-intro) .app-header{gap:8px}
+ .earth-primary-nav,.earth-explore-links,.atlas[data-view]:not(.is-intro) .app-header .primary-tools,.atlas[data-view]:not(.is-intro) .app-header .atlas-nav,.atlas[data-view]:not(.is-intro) .app-header .atlas-utilities{gap:6px}
+ .atlas[data-view]:not(.is-intro) .app-header button,.atlas[data-view]:not(.is-intro) .app-header .solar-back,.atlas[data-view]:not(.is-intro) .app-header .earth-music{font-size:11px;padding:6px 8px}
+}
+@media(max-width:1023px){
+ .atlas:not(.is-intro),.atlas.has-panel,.atlas.has-archive{--workspace-offset:0px;--earth-header-bottom:168px}
+ .atlas[data-view]:not(.is-intro) .app-header{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;top:12px;left:12px;right:12px;align-items:center}
+ .earth-primary-nav{display:contents}
+ .atlas[data-view]:not(.is-intro) .app-header .atlas-home{grid-column:1;grid-row:1}
+ .earth-explore-links{grid-column:1/-1;grid-row:2;gap:6px}
+ .atlas[data-view]:not(.is-intro) .app-header .atlas-utilities{grid-column:2;grid-row:1;justify-self:end;gap:6px}
+ .atlas[data-view]:not(.is-intro) .app-header .primary-tools{display:none}
+ .atlas[data-view]:not(.is-intro) .app-header .mobile-tools{display:block}
+ .atlas[data-view]:not(.is-intro) .app-header button,.atlas[data-view]:not(.is-intro) .app-header .earth-music,.atlas[data-view]:not(.is-intro) .app-header .solar-back{font-size:11px;padding:6px 9px}
+ .atlas[data-view]:not(.is-intro) .app-header .atlas-nav{gap:6px}
+ .atlas[data-view]:not(.is-intro) .app-header .nav-menu{top:50px;left:0;right:auto;max-width:calc(100vw - 24px);max-height:calc(100dvh - 190px - var(--earth-footer-height,80px))}
+ .atlas[data-view]:not(.is-intro) .app-header .mobile-tools .nav-menu{left:auto;right:0;width:180px}
+ .atlas[data-view]:not(.is-intro) .earth-search{left:auto;right:12px;top:116px;width:calc(100% - 24px)}
+ .atlas[data-view]:not(.is-intro) .earth-search-results{max-height:calc(100dvh - 200px - var(--earth-footer-height,80px))}
+ .atlas[data-view]:not(.is-intro) .earth-footer{left:12px;right:12px}
+ .atlas[data-view]:not(.is-intro) .earth-navigation{right:12px}
+ .atlas[data-view]:not(.is-intro) .workspace-panel{top:auto;max-height:min(60dvh,calc(100dvh - 192px - var(--earth-footer-height,80px)))}
+ .atlas[data-view]:not(.is-intro) .earth-stream-status{left:12px;top:168px;max-width:calc(100% - 24px)}
+ .atlas[data-view]:not(.is-intro) .earth-cloud-error{left:12px;top:212px}
+}
+@media(min-width:760px) and (max-width:1023px){
+ .atlas:not(.is-intro){--earth-header-bottom:116px}
+ .atlas[data-view]:not(.is-intro) .app-header{display:flex}
+ .earth-primary-nav{display:flex}
+ .earth-explore-links{display:flex}
+ .atlas[data-view]:not(.is-intro) .app-header .atlas-utilities{display:flex}
+ .atlas[data-view]:not(.is-intro) .earth-search{top:68px;width:300px}
+ .atlas[data-view]:not(.is-intro) .earth-stream-status{top:70px;max-width:260px}
+}
+@media(min-width:600px) and (max-width:1023px) and (max-height:600px){
+ .atlas[data-view]:not(.is-intro) .earth-navigation{flex-direction:row}
+ .atlas[data-view]:not(.is-intro) .workspace-panel{top:124px;bottom:calc(var(--earth-footer-height,64px) + 24px);height:auto;max-height:none}
+ .atlas.has-panel{--workspace-offset:calc(45vw + 24px)}
+ .atlas[data-view]:not(.is-intro) .earth-footer{right:calc(var(--workspace-offset) + 12px)}
+ .atlas[data-view]:not(.is-intro) .earth-info-stack{max-height:calc(100dvh - 148px - var(--earth-footer-height,64px))}
+}
+.rain-scale{background:linear-gradient(90deg,#58a7ff,#29cfe5,#3bd46c,#f8dc50,#ff823e,#fa415e,#b655ec)}
+/* Every tool floats over the unchanged camera viewport. Only individual cards
+   have a translucent glass surface; the surrounding panel stays transparent. */
+.atlas[data-view]:not(.is-intro) .workspace-panel.is-floating{bottom:calc(var(--earth-footer-height,64px) + 24px);background:transparent;border:0;box-shadow:none;backdrop-filter:none;animation:floating-arrive .3s ease-out}
+.atlas[data-view]:not(.is-intro) .is-floating .workspace-panel__head{background:transparent;border:0;box-shadow:none;padding:0 0 12px}
+.atlas[data-view]:not(.is-intro) .is-floating .workspace-panel__head h2{text-shadow:0 1px 5px #000;font:13px var(--sans)}
+.atlas[data-view]:not(.is-intro) .is-floating .workspace-panel__body{padding:0;animation:none;text-shadow:0 1px 4px #0009}
+.atlas[data-view]:not(.is-intro) .is-floating :is(.notice,.dossier__rows,.quality-control,.motion-setting){border:1px solid #ffffff28;border-radius:16px;background:#ffffff09;backdrop-filter:blur(20px) saturate(110%);box-shadow:inset 0 1px 0 #ffffff0d;padding:16px}
+.atlas[data-view]:not(.is-intro) .is-floating .dossier__rows{margin:14px 0}
+.atlas[data-view]:not(.is-intro) .is-floating .quality-control{margin:14px 0}
+.atlas[data-view]:not(.is-intro) .is-floating .motion-setting{display:flex;align-items:center;gap:10px;min-height:52px}
+.atlas.has-overlay .earth-navigation{visibility:hidden}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true]{--text:#172938;--text-dim:#233e50;--text-mute:#3b5262;--line:#193b502b;color:var(--text)}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true] :is(.workspace-panel__head h2,.workspace-panel__body,.notice,.quality-control__heading h3,.quality-control__heading>span,.quality-slider__labels button){color:var(--text);text-shadow:none}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true] :is(.notice,.dossier__rows,.quality-control,.motion-setting){background:#ffffff38;border-color:#193b5033}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true] .workspace-panel__head button{color:#173c50;background:#ffffff30;border-color:#193b5044}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true] .quality-slider__labels button[aria-pressed=true]{color:#694317}
+@keyframes floating-arrive{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:1023px){.atlas.has-overlay .earth-info-stack{visibility:hidden}}
+.atlas[data-reduced=true] .workspace-panel.is-floating{animation:none}
+@media(prefers-reduced-motion:reduce){.atlas .workspace-panel.is-floating{animation:none}}
+/* Shared card material across all tools and reading records. Panel shells and
+   menu shells stay clear, and never reserve any space in the globe viewport. */
+.atlas[data-view]:not(.is-intro) .is-floating{--floating-fill:#07111f38;--floating-edge:#ffffff28;--text:#f0f3f5;--text-dim:#d7e0e7;--text-mute:#bbc8d1}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true]{--floating-fill:#ffffff38;--floating-edge:#193b5033;--accent:#765526}
+.atlas[data-view]:not(.is-intro) .is-floating :is(.layer-list>section,.catalog-list>button,.reading-chapter,.reading-heading,.record-heading,.habitat-card,.species-detail>.sources,.dossier-content>section,.dossier-content>.sources,.species-photo,.species-tabs,.taxon-node,.related-species>button,.explore-step-card,.explore-phase-card,.lesson-steps,.legend,.depth-heading,.depth-zone,.profile-panel,.coordinate-form,.panel__hint,.search-label,.tagrow){
+ border:1px solid var(--floating-edge);border-radius:16px;background:var(--floating-fill);backdrop-filter:blur(20px) saturate(110%);box-shadow:inset 0 1px 0 #ffffff0d;padding:16px;margin-bottom:14px;color:var(--text);
+}
+.atlas[data-view]:not(.is-intro) .is-floating :is(.layer-list,.science-reading,.explore-paths,.catalog-list,.dossier-content,.species-detail,.depth-layout){background:transparent;box-shadow:none}
+.atlas[data-view]:not(.is-intro) .is-floating :is(.reading-heading h1,.reading-chapter h3){margin-top:0}
+.atlas[data-view]:not(.is-intro) .is-floating .catalog-list{gap:0}
+.atlas[data-view]:not(.is-intro) .is-floating .catalog-list>button{min-height:58px;text-align:left}
+.atlas[data-view]:not(.is-intro) .is-floating .layer-item{border-color:var(--line)}
+.atlas[data-view]:not(.is-intro) .is-floating .depth-zone{background:var(--floating-fill)!important}
+.atlas[data-view]:not(.is-intro) .is-floating .explore-step-card .search-label{background:none;border:0;box-shadow:none;backdrop-filter:none;padding:0}
+.atlas[data-view]:not(.is-intro) .is-floating .explore-step-card .tagrow,.atlas[data-view]:not(.is-intro) .is-floating .explore-phase-card .tagrow{border:0;padding:0;background:transparent;box-shadow:none}
+.atlas[data-view]:not(.is-intro) .is-floating .species-photo{padding:8px}
+.atlas[data-view]:not(.is-intro) .is-floating .species-tabs{position:static;padding:6px;top:auto}
+.atlas[data-view]:not(.is-intro) .is-floating .taxon-node{margin-left:0;padding:12px}
+.atlas[data-view]:not(.is-intro) .is-floating.has-contents .workspace-panel__body{padding:0 0 0 148px}
+.atlas[data-view]:not(.is-intro) .is-floating .archive-contents{top:68px;bottom:0;padding:12px;width:132px;border:1px solid var(--floating-edge);border-radius:16px;background:var(--floating-fill);backdrop-filter:blur(20px);color:var(--text)}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true] :is(h1,h2,h3,p,dt,dd,a,.eyebrow,.catalog-list small,.contents-label,.archive-contents button,.tag,.species-tabs button,.taxon-node small,.taxon-node em){color:var(--text);text-shadow:none}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true] .archive-contents button[aria-current=location]{background:#9b785818;color:#694317}
+/* Dropdown choices use the same glass cards with a transparent outer shell. */
+.atlas[data-view]:not(.is-intro) :is(.nav-menu,.earth-search-results){--floating-fill:#ffffff0d;--floating-edge:#ffffff30;background:transparent;border:0;box-shadow:none;backdrop-filter:none;padding:0;animation:floating-arrive .3s ease-out}
+.atlas[data-view]:not(.is-intro) :is(.nav-menu,.earth-search-results)>button{border:1px solid var(--floating-edge);border-radius:14px;background:var(--floating-fill);backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 #ffffff0d;margin-bottom:7px;padding:12px;min-height:44px}
+.atlas[data-view]:not(.is-intro) .ui-layer[data-light-map=true] :is(.nav-menu,.earth-search-results){--floating-fill:#ffffff88;--floating-edge:#193b5033;color:#172938;--text:#172938;--text-dim:#233e50;--text-mute:#3b5262}
+.atlas[data-view]:not(.is-intro) .ui-layer[data-light-map=true] :is(.nav-menu,.earth-search-results) :is(button,small,span,p){color:inherit;text-shadow:none}
+.atlas[data-view]:not(.is-intro) .earth-search-results>p,.atlas[data-view]:not(.is-intro) .earth-search-results>small{border-radius:12px;background:var(--floating-fill);backdrop-filter:blur(20px);padding:10px;margin:0 0 7px}
+.atlas .photo-dialog{background:transparent;border:0;box-shadow:none;backdrop-filter:none}
+.atlas .photo-dialog::backdrop{background:transparent;backdrop-filter:none}
+.atlas .photo-dialog :is(h2,p,.photo-close){background:#ffffff18;border:1px solid #ffffff30;border-radius:12px;padding:12px;backdrop-filter:blur(20px)}
+@media(max-width:1023px){
+ .atlas[data-view]:not(.is-intro) .is-floating.has-contents .workspace-panel__body{padding:64px 0 0}
+ .atlas[data-view]:not(.is-intro) .is-floating .archive-contents{top:58px;left:0;right:0;bottom:auto;width:auto;height:50px;padding:2px 10px;display:flex}
+}
+@media(prefers-reduced-motion:reduce){.atlas :is(.nav-menu,.earth-search-results){animation:none}}
+
+.atlas[data-view]:not(.is-intro) .is-floating .archive-contents button{color:var(--text);text-shadow:0 1px 3px #000c}
+.atlas[data-view]:not(.is-intro) .is-floating .archive-contents button span{color:var(--text-dim)}
+.atlas[data-view]:not(.is-intro) .is-floating[data-light-map=true] .archive-contents button{text-shadow:none}
+.atlas[data-view]:not(.is-intro) .is-floating .record-heading :is(h1,p){margin-bottom:0}
+.atlas[data-view]:not(.is-intro) .is-floating .record-heading .tagrow{padding:0;border:0;box-shadow:none;background:transparent;margin-top:12px;margin-bottom:0}
+
+/* Menus must remain above the search field on compact layouts. */
+.atlas[data-view]:not(.is-intro) .app-header{z-index:35}
+
+/* Geographic hierarchy changes visibility, never text scale or font family. */
+.atlas .earth-place-labels{font-family:var(--sans)}
+.atlas .earth-place-label{font:400 12px/1.5 var(--sans);letter-spacing:0;color:#e1e7ee;text-shadow:0 1px 2px #000b;transition:opacity .18s ease;will-change:auto}
+.atlas .earth-place-label--ocean{color:#d4e1eb}
+.atlas .earth-place-label--current{color:#e4d1ae}
+.atlas .earth-place-labels[data-light=true] .earth-place-label{color:#3b5262;text-shadow:0 1px 2px #ffffffb3}
+.atlas .earth-place-labels[data-light=true] .earth-place-label--current{color:#715d40}
+.atlas[data-reduced=true] .earth-place-label{transition:none}
+@media(prefers-reduced-motion:reduce){.atlas .earth-place-label{transition:none}}
+
+/* Wind names remain compact, with an accessible explanation on selection. */
+.atlas .earth-place-label--wind{color:#d4e5e8;pointer-events:auto;cursor:pointer;min-height:44px;justify-content:center;padding:4px 8px;border-radius:10px}
+.atlas .earth-place-label--wind small{display:block;font:400 10px/1.5 var(--sans);letter-spacing:0;color:inherit;margin-top:2px;opacity:.85}
+.atlas .earth-place-label--wind:hover,.atlas .earth-place-label--wind:focus-visible{background:#1729384d;backdrop-filter:blur(8px);outline:1px solid #bbdce944}
+.atlas .earth-place-labels[data-light=true] .earth-place-label--wind{color:#3b5262}
+.wind-info-link{font:11px var(--sans);text-align:left;border-top:1px solid var(--line);width:100%;margin-top:8px;padding:8px 0;color:inherit}
+.atlas .earth-music-group{position:relative;display:flex;align-items:center;gap:4px}
+.atlas .earth-music-now>summary{display:grid;place-items:center;list-style:none;cursor:pointer;min-width:44px;min-height:44px;border-radius:10px;color:#d8e5ee;font:14px var(--sans)}
+.atlas .earth-music-now>summary::-webkit-details-marker{display:none}
+.atlas .earth-music-now[open]>summary,.atlas .earth-music-now>summary:hover{background:#a8cce51a}
+.atlas .earth-music-card{position:absolute;top:52px;right:0;width:260px;padding:16px;display:flex;flex-direction:column;gap:10px;border-radius:16px;background:linear-gradient(135deg,#293440a8,#111b28a8);backdrop-filter:blur(24px) saturate(140%);border:1px solid #c6d6eb30;box-shadow:0 12px 36px #0003;z-index:120;font:14px/1.6 var(--sans);color:#e4edf4}
+.atlas .earth-music-card small,.atlas .earth-music-card a{font:12px/1.5 var(--sans);color:#c1d6e7}
+.atlas .earth-music-card strong{font:500 17px/1.5 var(--sans)}
+.atlas .earth-music-card p{margin:0}
+.atlas .earth-place-label--interactive{pointer-events:auto;cursor:pointer;min-height:44px;justify-content:center;border-radius:10px;padding:4px 8px}
+.atlas .earth-place-label--interactive:hover,.atlas .earth-place-label--interactive:focus-visible{background:#1729384d;backdrop-filter:blur(8px);outline:1px solid #bbdce944}
